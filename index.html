@@ -5669,6 +5669,16 @@
     .numeric-value { display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
     .numeric-value > span { color: var(--muted); font-size: 12px; }
     .numeric-value > strong { font: 700 28px var(--font-mono); }
+    .command-card { display: grid; gap: 10px; border-top: 1px solid var(--border); padding-top: 12px; min-width: 0; }
+    .command-editor { display: none; }
+    .command-panel.is-open .command-editor { display: block; }
+    .command-editor label, .command-inputs label { display: grid; gap: 4px; font-size: 12px; margin-bottom: 8px; min-width: 0; }
+    .command-editor input:not([type="checkbox"]), .command-editor textarea, .command-inputs input { width: 100%; min-width: 0; }
+    .command-editor textarea { min-height: 60px; resize: vertical; }
+    .command-parameter-editor { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; border-top: 1px dashed var(--border); padding-top: 8px; }
+    .command-inputs { display: grid; gap: 6px; }
+    .command-preview { font: 12px var(--font-mono); white-space: normal; overflow-wrap: anywhere; max-height: 100px; overflow: auto; }
+    .command-preview[data-status="error"] { color: var(--danger); }
     #binary-fields-status[data-status="error"], #tx-checksum-preview[data-status="error"], #rx-checksum-result[data-status="error"] { color: var(--danger, #e06363); }
   </style>
 </head>
@@ -6062,6 +6072,7 @@
               <button id="add-fft-chart-btn" class="secondary-btn">频域图</button>
               <button id="add-bar-chart-btn" class="secondary-btn">柱状图</button>
               <button id="add-numeric-panel-btn" class="secondary-btn" type="button">数值框</button>
+              <button id="add-command-panel-btn" class="secondary-btn" type="button">指令框</button>
               <button id="clear-charts-btn" class="secondary-btn danger-btn" type="button">清空缓存</button>
             </div>
           </div>
@@ -6638,6 +6649,7 @@
           parserResultsExpanded: false,
           parserResultsCanExpand: false,
           chartDrag: null,
+          commandRuntime: {},
           componentColumns: 1,
           sendExtensionHeightOverride: 0,
           sendExtensionResize: null,
@@ -7812,6 +7824,7 @@
             ? snapshot.items.map((chart) => hydrateChartFromConfig(chart))
             : [];
         state.ui.chartPickerOpenId = '';
+        state.ui.commandRuntime = {};
         invalidateDerivedCaches();
         syncParserInputs();
       }
@@ -8344,7 +8357,7 @@
 
       function closeMenus(event) {
         const target = event?.target instanceof Element ? event.target : null;
-        if (!target || (!target.closest('.chart-config') && !target.closest('.chart-axis-binding-picker') && !target.closest('.chart-toolbar') && !target.closest('.chart-order-tools') && !target.closest('[data-chart-view-chip]'))) {
+        if (!target || (!target.closest('.command-panel') && !target.closest('.chart-config') && !target.closest('.chart-axis-binding-picker') && !target.closest('.chart-toolbar') && !target.closest('.chart-order-tools') && !target.closest('[data-chart-view-chip]'))) {
           let closedChartConfig = false;
           state.charts.forEach((chart) => {
             if (!chart.open) return;
@@ -11942,16 +11955,266 @@
         }
       }
 
+      function createCommand() {
+        return { id: uid('schema'), name: '新指令', template: '00', appendNewline: false, newlineMode: 'rn', checksum: normalizeProtocolChecksum(), parameters: [] };
+      }
+
+      function snapshotCommand(command) {
+        return { name: command.name, template: command.template, appendNewline: command.appendNewline, newlineMode: command.newlineMode,
+          checksum: { ...command.checksum }, parameters: command.parameters.map(({ name, offset, dataType, byteOrder, defaultValue, min, max, options }) => ({ name, offset, dataType, byteOrder, defaultValue, min, max, options })) };
+      }
+
+      function hydrateCommand(command) {
+        return { ...command, id: uid('schema'), checksum: { ...command.checksum }, parameters: command.parameters.map(parameter => ({ ...parameter, id: uid('schema') })) };
+      }
+
+      function commandNumber(text, label) {
+        if (typeof text !== 'string' || !/^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(text.trim()) || !Number.isFinite(Number(text))) throw new Error(`${label}：请输入有效数值`);
+        return Number(text);
+      }
+
+      function commandParameterRange(parameter) {
+        const label = `参数 ${parameter.name}`;
+        const min = parameter.min === '' ? null : commandNumber(parameter.min, `${label}最小值`);
+        const max = parameter.max === '' ? null : commandNumber(parameter.max, `${label}最大值`);
+        if (min !== null && max !== null && min > max) throw new Error(`${label}：最小值不能大于最大值`);
+        return { min, max };
+      }
+
+      function commandParameterValue(parameter, text, checkOptions = true) {
+        const label = `参数 ${parameter.name}`;
+        const value = commandNumber(text, label);
+        const limits = { int8: [-128, 127], uint8: [0, 255], int16: [-32768, 32767], uint16: [0, 65535], int32: [-2147483648, 2147483647], uint32: [0, 4294967295] };
+        if (parameter.dataType === 'float32') {
+          if (!Number.isFinite(Math.fround(value))) throw new Error(`${label}：Float32 编码溢出`);
+        } else {
+          const range = limits[parameter.dataType];
+          if (!range || !Number.isInteger(value) || value < range[0] || value > range[1]) throw new Error(`${label}：超出 ${parameter.dataType} 整数范围`);
+        }
+        const { min, max } = commandParameterRange(parameter);
+        if ((min !== null && value < min) || (max !== null && value > max)) throw new Error(`${label}：超出允许范围`);
+        if (checkOptions && parameter.options.trim()) {
+          if (!commandOptions(parameter).some(option => option.value === value)) throw new Error(`${label}：必须选择已定义的枚举值`);
+        }
+        return value;
+      }
+
+      function commandOptions(parameter) {
+        if (typeof parameter.options !== 'string') throw new Error(`参数 ${parameter.name}：枚举配置无效`);
+        const values = new Set();
+        return parameter.options.split(/\r?\n/).filter(line => line.trim()).map(line => {
+          const split = line.lastIndexOf('=');
+          const label = line.slice(0, split).trim();
+          if (split < 1 || !label) throw new Error(`参数 ${parameter.name}：枚举每行应为 名称=数值`);
+          const value = commandParameterValue(parameter, line.slice(split + 1), false);
+          if (values.has(value)) throw new Error(`参数 ${parameter.name}：枚举值重复`);
+          values.add(value);
+          return { label, value };
+        });
+      }
+
+      function validateCommandDefinition(command) {
+        if (typeof command.name !== 'string' || !command.name.trim()) throw new Error('指令名称不能为空');
+        if (typeof command.template !== 'string' || !/^[0-9a-f\s,]*$/i.test(command.template.replace(/0x/gi, ''))) throw new Error('指令模板必须为 HEX 字节');
+        const bytes = parseHexString(command.template);
+        if (!bytes.length || bytes.length > SERIAL_BUFFER_SIZE) throw new Error('指令模板长度必须为 1～65536 bytes');
+        if (typeof command.appendNewline !== 'boolean' || !['r', 'n', 'rn'].includes(command.newlineMode)) throw new Error('指令换行设置无效');
+        const frameLength = bytes.length + (command.appendNewline ? (command.newlineMode === 'rn' ? 2 : 1) : 0);
+        if (frameLength > SERIAL_BUFFER_SIZE) throw new Error('追加换行后整帧过长');
+        validateProtocolChecksum(command.checksum, frameLength);
+        const occupied = [];
+        const names = new Set();
+        command.parameters.forEach(parameter => {
+          const meta = FIXED_FIELD_TYPES.find(type => type.value === parameter.dataType && !type.value.startsWith('bit'));
+          if (typeof parameter.name !== 'string' || !parameter.name.trim() || names.has(parameter.name)) throw new Error('参数名称为空或重复');
+          names.add(parameter.name);
+          if (!meta || !['le', 'be'].includes(parameter.byteOrder)) throw new Error(`参数 ${parameter.name}：类型或字节序无效`);
+          if (!Number.isSafeInteger(parameter.offset) || parameter.offset < 0 || parameter.offset + meta.bytes > bytes.length) throw new Error(`参数 ${parameter.name}：字段超出模板`);
+          const end = parameter.offset + meta.bytes;
+          if (occupied.some(range => parameter.offset < range.end && range.start < end)) throw new Error(`参数 ${parameter.name}：与其他参数重叠`);
+          if (command.checksum.enabled && parameter.offset < command.checksum.offset + checksumWidth(command.checksum) && command.checksum.offset < end) throw new Error(`参数 ${parameter.name}：与校验字段重叠`);
+          occupied.push({ start: parameter.offset, end });
+          if (typeof parameter.defaultValue !== 'string') throw new Error(`参数 ${parameter.name}：默认值无效`);
+          commandParameterRange(parameter);
+          commandOptions(parameter);
+          if (parameter.defaultValue !== '') commandParameterValue(parameter, parameter.defaultValue);
+        });
+        return bytes;
+      }
+
+      function buildCommandFrame(command, values = command.parameters.map(parameter => parameter.defaultValue)) {
+        const bytes = validateCommandDefinition(command);
+        const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        const setters = { int8: 'setInt8', uint8: 'setUint8', int16: 'setInt16', uint16: 'setUint16', int32: 'setInt32', uint32: 'setUint32', float32: 'setFloat32' };
+        command.parameters.forEach((parameter, index) => {
+          const value = commandParameterValue(parameter, values[index]);
+          view[setters[parameter.dataType]](parameter.offset, value, parameter.byteOrder === 'le');
+        });
+        return buildPayloadFrame(bytesToHex(bytes), { sendMode: 'hex', appendNewline: command.appendNewline, newlineMode: command.newlineMode, txChecksum: command.checksum });
+      }
+
+      function getCommandRuntime(command) {
+        return state.ui.commandRuntime[command.id] || (state.ui.commandRuntime[command.id] = { values: {}, status: '', sending: false });
+      }
+
+      function commandInputValues(command) {
+        const runtime = getCommandRuntime(command);
+        return command.parameters.map(parameter => Object.prototype.hasOwnProperty.call(runtime.values, parameter.id) ? runtime.values[parameter.id] : parameter.defaultValue);
+      }
+
+      function renderCommandParameter(parameter) {
+        return `<div class="command-parameter-editor" data-command-param-id="${parameter.id}">
+          <label>名称<input class="compact-input" data-command-param-key="name" value="${escapeHtml(parameter.name)}"></label>
+          <label>偏移<input class="compact-input" type="number" min="0" step="1" data-command-param-key="offset" value="${parameter.offset}"></label>
+          <label>类型<select class="compact-select" data-command-param-key="dataType">${FIXED_FIELD_TYPES.filter(type => !type.value.startsWith('bit')).map(type => `<option value="${type.value}" ${type.value === parameter.dataType ? 'selected' : ''}>${type.label}</option>`).join('')}</select></label>
+          <label>字节序<select class="compact-select" data-command-param-key="byteOrder"><option value="le" ${parameter.byteOrder === 'le' ? 'selected' : ''}>小端 LE</option><option value="be" ${parameter.byteOrder === 'be' ? 'selected' : ''}>大端 BE</option></select></label>
+          <label>默认值<input class="compact-input" data-command-param-key="defaultValue" value="${escapeHtml(parameter.defaultValue)}"></label>
+          <label>最小值（可空）<input class="compact-input" data-command-param-key="min" value="${escapeHtml(parameter.min)}"></label>
+          <label>最大值（可空）<input class="compact-input" data-command-param-key="max" value="${escapeHtml(parameter.max)}"></label>
+          <label>枚举（可空，每行 名称=数值）<textarea class="compact-input" data-command-param-key="options">${escapeHtml(parameter.options)}</textarea></label>
+          <button class="mini-btn" type="button" data-remove-command-param>删除参数</button>
+        </div>`;
+      }
+
+      function renderCommandPanel(chart) {
+        return `<article class="chart-panel numeric-panel command-panel ${chart.open ? 'is-open' : ''}" data-chart-id="${chart.id}">
+          <div class="numeric-header"><strong data-command-heading>${escapeHtml(chart.name)}</strong><div class="chart-toolbar">
+            <button class="mini-btn" type="button" data-chart-move-up aria-label="上移">↑</button><button class="mini-btn" type="button" data-chart-move-down aria-label="下移">↓</button>
+            <button class="mini-btn" type="button" data-chart-toggle aria-label="指令框设置">设置</button><button class="mini-btn" type="button" data-chart-remove aria-label="删除指令框">×</button>
+          </div></div>
+          <div class="chart-config ${chart.open ? 'open' : ''}"><label>标题<input class="compact-input" data-command-panel-title value="${escapeHtml(chart.name)}"></label><button class="secondary-btn" type="button" data-add-command>新增指令按钮</button></div>
+          ${chart.commands.map(command => `<section class="command-card" data-command-id="${command.id}">
+            <details class="command-editor"><summary>编辑 ${escapeHtml(command.name)}</summary>
+              <label>按钮名称<input class="compact-input" data-command-key="name" value="${escapeHtml(command.name)}"></label>
+              <label>HEX 模板（含参数及校验占位字节）<textarea class="compact-input" data-command-key="template">${escapeHtml(command.template)}</textarea></label>
+              <div class="button-row"><label><input type="checkbox" data-command-key="appendNewline" ${command.appendNewline ? 'checked' : ''}>追加换行</label><select class="compact-select" data-command-key="newlineMode"><option value="r" ${command.newlineMode === 'r' ? 'selected' : ''}>CR</option><option value="n" ${command.newlineMode === 'n' ? 'selected' : ''}>LF</option><option value="rn" ${command.newlineMode === 'rn' ? 'selected' : ''}>CRLF</option></select></div>
+              <div class="protocol-checksum-controls">${checksumControls(command.checksum)}</div>
+              <div class="panel-subtitle">本按钮独立校验；偏移从整帧 0 起算，参数写入模板后追加换行并计算校验。</div>
+              ${command.parameters.map(renderCommandParameter).join('')}
+              <div class="button-row"><button class="secondary-btn" type="button" data-add-command-param>新增参数</button><button class="secondary-btn danger-btn" type="button" data-remove-command>删除指令</button></div>
+            </details>
+            <div class="command-inputs" data-command-inputs></div>
+            <button class="primary-btn" type="button" data-send-command>${escapeHtml(command.name)}</button>
+            <output class="command-preview" data-command-preview></output><div class="panel-subtitle" data-command-status role="status"></div>
+          </section>`).join('') || '<div class="panel-subtitle">在设置中新增指令按钮。</div>'}
+        </article>`;
+      }
+
+      function refreshCommandPanel(chart) {
+        const panel = refs.chartList.querySelector(`[data-chart-id="${chart.id}"]`);
+        if (!panel) return;
+        panel.querySelector('[data-command-heading]').textContent = chart.name;
+        chart.commands.forEach(command => {
+          const card = panel.querySelector(`[data-command-id="${command.id}"]`);
+          const runtime = getCommandRuntime(command);
+          card.querySelector('.command-editor > summary').textContent = `编辑 ${command.name}`;
+          const inputs = card.querySelector('[data-command-inputs]');
+          const signature = JSON.stringify(command.parameters);
+          if (inputs.dataset.signature !== signature) {
+            inputs.dataset.signature = signature;
+            inputs.innerHTML = command.parameters.map(parameter => {
+              let options = [];
+              try { options = commandOptions(parameter); } catch (error) { /* The preview reports invalid definitions. */ }
+              const value = commandInputValues(command)[command.parameters.indexOf(parameter)];
+              return `<label>${escapeHtml(parameter.name)}${options.length ? `<select class="compact-select" data-command-value="${parameter.id}"><option value="">请选择</option>${options.map(option => `<option value="${option.value}" ${String(value ?? '').trim() !== '' && option.value === Number(value) ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}</select>` : `<input class="compact-input" data-command-value="${parameter.id}" value="${escapeHtml(value ?? '')}">`}</label>`;
+            }).join('');
+            syncCustomSelects(inputs);
+          }
+          const setDisabled = (input, disabled) => {
+            if (input.disabled === disabled) return;
+            input.disabled = disabled;
+            if (input.tagName === 'SELECT') syncCustomSelects(input.parentElement);
+          };
+          card.querySelectorAll('[data-command-value], [data-command-key], [data-checksum-key], [data-command-param-key], [data-add-command-param], [data-remove-command-param], [data-remove-command]').forEach(input => { if (input.dataset.commandParamKey !== 'byteOrder') setDisabled(input, runtime.sending); });
+          command.parameters.forEach(parameter => {
+            const selector = card.querySelector(`[data-command-param-id="${parameter.id}"] [data-command-param-key="byteOrder"]`);
+            if (selector) setDisabled(selector, runtime.sending || FIXED_FIELD_TYPES.find(type => type.value === parameter.dataType)?.bytes === 1);
+          });
+          const send = card.querySelector('[data-send-command]');
+          send.textContent = command.name;
+          const preview = card.querySelector('[data-command-preview]');
+          let valid = false;
+          try {
+            const frame = buildCommandFrame(command, commandInputValues(command));
+            preview.textContent = `最终 HEX：${bytesToHex(frame.bytes)}`;
+            preview.dataset.status = 'ok'; valid = true;
+          } catch (error) {
+            preview.textContent = `无法发送：${error.message}`; preview.dataset.status = 'error';
+          }
+          send.disabled = !valid || !state.serial.connected || runtime.sending || state.ui.deviceConfigImporting;
+          send.title = !state.serial.connected ? '请先手动连接串口' : '仅发送，不等待设备应答';
+          card.querySelector('[data-command-status]').textContent = runtime.status || (!state.serial.connected ? '未连接串口' : '');
+        });
+      }
+
+      async function sendCommand(chart, command) {
+        const runtime = getCommandRuntime(command);
+        if (runtime.sending) return false;
+        try {
+          const frame = buildCommandFrame(command, commandInputValues(command));
+          runtime.sending = true; runtime.status = '发送中'; scheduleRefresh({ charts: true });
+          const sent = await sendPayload(bytesToHex(frame.bytes), 'command', { sendMode: 'hex', appendNewline: false, txChecksum: normalizeProtocolChecksum() }, { commandName: command.name, commandPanel: chart.name });
+          runtime.status = sent ? '已发送' : '发送失败（串口未就绪或写入失败）';
+          return sent;
+        } catch (error) {
+          runtime.status = `发送失败：${error.message}`; return false;
+        } finally {
+          runtime.sending = false; scheduleRefresh({ charts: true });
+        }
+      }
+
+      function handleCommandInput(event, chart) {
+        if (event.type === 'input' && (event.target.tagName === 'SELECT' || event.target.type === 'checkbox')) return;
+        if (event.target.hasAttribute('data-command-panel-title')) { chart.name = event.target.value; scheduleRefresh({ charts: true }); return; }
+        const card = event.target.closest('[data-command-id]');
+        const command = card && chart.commands.find(entry => entry.id === card.dataset.commandId);
+        if (!command) return;
+        const runtime = getCommandRuntime(command);
+        runtime.status = '';
+        if (event.target.hasAttribute('data-command-value')) runtime.values[event.target.dataset.commandValue] = event.target.value;
+        else if (event.target.dataset.commandKey) {
+          const key = event.target.dataset.commandKey;
+          command[key] = key === 'appendNewline' ? event.target.checked : event.target.value;
+        } else if (event.target.dataset.checksumKey) {
+          const key = event.target.dataset.checksumKey;
+          command.checksum[key] = key === 'enabled' ? event.target.checked : ['start', 'length', 'offset'].includes(key) ? Number(event.target.value) : event.target.value;
+        } else if (event.target.dataset.commandParamKey) {
+          const parameter = command.parameters.find(entry => entry.id === event.target.closest('[data-command-param-id]').dataset.commandParamId);
+          const key = event.target.dataset.commandParamKey;
+          parameter[key] = key === 'offset' ? Number(event.target.value) : event.target.value;
+        }
+        scheduleRefresh({ charts: true });
+      }
+
+      function handleCommandClick(event, chart) {
+        if (event.target.closest('[data-chart-remove]')) chart.commands.forEach(command => { delete state.ui.commandRuntime[command.id]; });
+        const card = event.target.closest('[data-command-id]');
+        const command = card && chart.commands.find(entry => entry.id === card.dataset.commandId);
+        let changed = false;
+        if (event.target.closest('[data-add-command]')) { chart.commands.push(createCommand()); changed = true; }
+        if (command && event.target.closest('[data-remove-command]')) { chart.commands = chart.commands.filter(entry => entry.id !== command.id); delete state.ui.commandRuntime[command.id]; changed = true; }
+        if (command && event.target.closest('[data-add-command-param]')) {
+          const offset = command.parameters.reduce((end, parameter) => Math.max(end, parameter.offset + (FIXED_FIELD_TYPES.find(type => type.value === parameter.dataType)?.bytes || 1)), 0);
+          let index = 1; while (command.parameters.some(parameter => parameter.name === `param${index}`)) index++;
+          command.parameters.push({ id: uid('schema'), name: `param${index}`, offset, dataType: 'uint8', byteOrder: 'le', defaultValue: '0', min: '', max: '', options: '' }); changed = true;
+        }
+        if (command && event.target.closest('[data-remove-command-param]')) { const id = event.target.closest('[data-command-param-id]').dataset.commandParamId; command.parameters = command.parameters.filter(parameter => parameter.id !== id); delete getCommandRuntime(command).values[id]; changed = true; }
+        if (command && event.target.closest('[data-send-command]')) { sendCommand(chart, command); return true; }
+        if (changed) { renderCharts(true); scheduleLocalPrefsSave(); return true; }
+        return false;
+      }
+
       function createChart(type) {
-        const normalizedType = ['time', 'fft', 'bar', 'numeric'].includes(type) ? type : 'time';
+        const normalizedType = ['time', 'fft', 'bar', 'numeric', 'command'].includes(type) ? type : 'time';
         const chartTitle = normalizedType === 'time'
           ? `时域图 ${chartIdCounter}`
           : normalizedType === 'fft'
             ? `频域图 ${chartIdCounter}`
-            : normalizedType === 'numeric' ? `数值框 ${chartIdCounter}` : `柱状图 ${chartIdCounter}`;
+            : normalizedType === 'numeric' ? `数值框 ${chartIdCounter}` : normalizedType === 'command' ? `指令框 ${chartIdCounter}` : `柱状图 ${chartIdCounter}`;
         return {
           id: uid('chart'),
           type: normalizedType,
+          ...(normalizedType === 'command' ? { commands: [createCommand()] } : {}),
           name: chartTitle,
           open: false,
           bindings: [],
@@ -12123,6 +12386,7 @@
       }
 
       function normalizeChartBindings(chart, selectableFields) {
+        if (chart.type === 'command') return [];
         if (chart.type === 'numeric') return getNumericPanelFields(chart);
         if (!selectableFields) selectableFields = getChartSelectableFields(chart && chart.type);
         const available = Array.isArray(selectableFields) ? selectableFields : [];
@@ -12907,6 +13171,7 @@
       }
 
       function renderChartPanel(chart) {
+        if (chart.type === 'command') return renderCommandPanel(chart);
         if (chart.type === 'numeric') return renderNumericPanel(chart);
         const fieldItems = normalizeChartBindings(chart);
         const yAxisBindingKey = ensureChartYAxisBinding(chart);
@@ -13101,6 +13366,7 @@
           const paintForce = state.ui.chartPaintForce;
           state.ui.chartPaintForce = false;
           state.charts.forEach((chart) => {
+            if (chart.type === 'command') { refreshCommandPanel(chart); return; }
             if (chart.type === 'numeric') { renderNumericPanelValues(chart); return; }
             syncChartViewUi(chart);
             syncChartCanvasHeightUi(chart);
@@ -14455,8 +14721,21 @@
         const numericFieldKeys = new Set(getConfiguredBinaryFields(binary.rows, binary.fields || []).filter(field => field.type === 'numeric').map(field => field.key));
         config.charts.forEach((chart, index) => {
           const path = `charts[${index}]`;
-          object(chart, ['chartType', 'title', 'panel', 'channels', 'fft', 'view'], path);
-          choice(chart.chartType, ['time', 'fft', 'bar', 'numeric'], `${path}.chartType`);
+          object(chart, ['chartType', 'title', 'panel', 'channels', 'fft', 'view', 'commands'], path);
+          choice(chart.chartType, ['time', 'fft', 'bar', 'numeric', 'command'], `${path}.chartType`);
+          if (chart.chartType === 'command') {
+            array(chart.commands, `${path}.commands`);
+            chart.commands.forEach((command, commandIndex) => {
+              const commandPath = `${path}.commands[${commandIndex}]`;
+              object(command, ['name', 'template', 'appendNewline', 'newlineMode', 'checksum', 'parameters'], commandPath);
+              validateChecksumObject(command.checksum, `${commandPath}.checksum`);
+              array(command.parameters, `${commandPath}.parameters`);
+              command.parameters.forEach((parameter, parameterIndex) => {
+                object(parameter, ['name', 'offset', 'dataType', 'byteOrder', 'defaultValue', 'min', 'max', 'options'], `${commandPath}.parameters[${parameterIndex}]`);
+              });
+              validateCommandDefinition(command);
+            });
+          } else if (chart.commands !== undefined) fail(path, '指令只能用于指令框');
           string(chart.title, `${path}.title`);
           object(chart.panel, ['configOpen', 'heightPx'], `${path}.panel`);
           bool(chart.panel.configOpen, `${path}.panel.configOpen`);
@@ -14971,6 +15250,7 @@
       function snapshotChartConfig(chart) {
         return {
           chartType: chart.type,
+          ...(chart.type === 'command' ? { commands: chart.commands.map(snapshotCommand) } : {}),
           title: chart.name,
           panel: {
             configOpen: Boolean(chart.open),
@@ -15002,10 +15282,11 @@
       }
 
       function hydrateChartFromConfig(rawChart) {
-        const nextType = ['time', 'fft', 'bar', 'numeric'].includes(rawChart?.chartType) ? rawChart.chartType : 'time';
+        const nextType = ['time', 'fft', 'bar', 'numeric', 'command'].includes(rawChart?.chartType) ? rawChart.chartType : 'time';
         const base = createChart(nextType);
         base.id = uid('chart');
         base.type = nextType;
+        if (nextType === 'command') base.commands = rawChart.commands.map(hydrateCommand);
         base.name = String(rawChart?.title || base.name);
         base.open = Boolean(rawChart?.panel?.configOpen);
         base.heightPx = Math.max(140, Number(rawChart?.panel?.heightPx) || base.heightPx || 220);
@@ -15953,6 +16234,7 @@
       function handleChartClick(event) {
         const chart = findChartFromEvent(event.target);
         if (!chart) return;
+        if (chart.type === 'command' && handleCommandClick(event, chart)) return;
         const bindingOption = event.target.closest('[data-chart-y-binding-option]');
         if (bindingOption) {
           chart.yAxisBindingKey = bindingOption.dataset.chartYBindingOption || '';
@@ -16014,6 +16296,7 @@
       function handleChartInput(event) {
         const chart = findChartFromEvent(event.target);
         if (!chart) return;
+        if (chart.type === 'command') { handleCommandInput(event, chart); return; }
         if (chart.type === 'numeric') {
           if (event.target.hasAttribute('data-numeric-title')) {
             chart.name = event.target.value;
@@ -16733,6 +17016,11 @@
         });
         chartLayoutObserver.observe(refs.chartList);
 
+        document.getElementById('add-command-panel-btn').addEventListener('click', (event) => {
+          event.stopPropagation(); closeMenus(event);
+          const panel = createChart('command'); panel.open = true;
+          state.charts.push(panel); renderCharts(true); scheduleLocalPrefsSave();
+        });
         document.getElementById('add-numeric-panel-btn').addEventListener('click', (event) => {
           event.stopPropagation();
           closeMenus(event);
