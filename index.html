@@ -5655,7 +5655,21 @@
     .protocol-checksum-controls input[type="number"] { width: 76px; }
     .binary-schema-row > .protocol-checksum-controls { grid-column: 1 / -1; }
     #tx-checksum-preview { display: block; white-space: normal; overflow-wrap: anywhere; max-height: 70px; overflow: auto; }
-    #tx-checksum-preview[data-status="error"], #rx-checksum-result[data-status="error"] { color: var(--danger, #e06363); }
+    .binary-field-row { display: grid; grid-template-columns: minmax(120px, 2fr) minmax(75px, 1fr) minmax(100px, 1fr) minmax(100px, 1fr) auto; gap: 8px; margin: 8px 0; }
+    .binary-field-row label { display: grid; gap: 4px; min-width: 0; font-size: 12px; }
+    .binary-field-row input { width: 100%; min-width: 0; }
+    .numeric-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+    .numeric-header > strong { overflow-wrap: anywhere; min-width: 0; }
+    .numeric-panel .chart-toolbar { position: static; opacity: 1; pointer-events: auto; transform: none; flex-wrap: wrap; }
+    .numeric-panel .chart-config { position: static; display: none; width: auto; max-width: none; transform: none; box-shadow: none; }
+    .numeric-panel .chart-config.open { display: grid; }
+    .numeric-field-options { display: grid; gap: 8px; max-height: 200px; overflow: auto; }
+    .numeric-field-options label { display: flex; justify-content: space-between; gap: 8px; overflow-wrap: anywhere; }
+    .numeric-values { display: grid; gap: 12px; }
+    .numeric-value { display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+    .numeric-value > span { color: var(--muted); font-size: 12px; }
+    .numeric-value > strong { font: 700 28px var(--font-mono); }
+    #binary-fields-status[data-status="error"], #tx-checksum-preview[data-status="error"], #rx-checksum-result[data-status="error"] { color: var(--danger, #e06363); }
   </style>
 </head>
 <body spellcheck="false">
@@ -6017,6 +6031,9 @@
               <div id="binary-schema-list" class="binary-schema-list"></div>
               <div id="binary-frame-layout" class="panel-subtitle" role="status"></div>
               <div id="rx-checksum-result" class="panel-subtitle" role="status"></div>
+              <div class="parser-card-head"><div class="panel-title">固定偏移字段</div><button id="add-binary-field-btn" class="secondary-btn" type="button">新增字段</button></div>
+              <div id="binary-fields-list"></div>
+              <div id="binary-fields-status" class="panel-subtitle" role="status"></div>
             </div>
           </section>
 
@@ -6044,6 +6061,7 @@
               <button id="add-time-chart-btn" class="secondary-btn">时域图</button>
               <button id="add-fft-chart-btn" class="secondary-btn">频域图</button>
               <button id="add-bar-chart-btn" class="secondary-btn">柱状图</button>
+              <button id="add-numeric-panel-btn" class="secondary-btn" type="button">数值框</button>
               <button id="clear-charts-btn" class="secondary-btn danger-btn" type="button">清空缓存</button>
             </div>
           </div>
@@ -6516,7 +6534,8 @@
         },
         parser: {
           textRule: '',
-          binarySchema: []
+          binarySchema: [],
+          binaryFields: []
         },
         derived: {
           availableFields: [],
@@ -7785,6 +7804,7 @@
           : Array.isArray(snapshot.binarySchema)
             ? snapshot.binarySchema.map((row) => normalizeBinarySchemaRowFromConfig(row))
             : [];
+        state.parser.binaryFields = (snapshot.binary?.fields || []).map(field => ({ id: uid('schema'), ...field }));
         ensureBinarySchemaRow();
         state.charts = Array.isArray(snapshot.charts)
           ? snapshot.charts.map((chart) => hydrateChartFromConfig(chart))
@@ -10497,6 +10517,123 @@
         return target;
       }
 
+      const FIXED_FIELD_TYPES = [
+        { value: 'int8', label: 'Int8', bytes: 1 }, { value: 'uint8', label: 'UInt8', bytes: 1 },
+        { value: 'int16', label: 'Int16', bytes: 2 }, { value: 'uint16', label: 'UInt16', bytes: 2 },
+        { value: 'int32', label: 'Int32', bytes: 4 }, { value: 'uint32', label: 'UInt32', bytes: 4 },
+        { value: 'float32', label: 'Float32', bytes: 4 },
+        ...Array.from({ length: 8 }, (_, bit) => ({ value: `bit${bit}`, label: `bit${bit}`, bytes: 1 }))
+      ];
+
+      function snapshotBinaryFields() {
+        return (state.parser.binaryFields || []).map(({ name, offset, dataType, byteOrder }) => ({ name, offset, dataType, byteOrder }));
+      }
+
+      function validateBinaryFields(fields, schema) {
+        const { frameLength } = getBinarySchemaLayout(schema);
+        const names = new Set(getConfiguredBinaryFields(schema, []).map(field => field.key.slice(7)));
+        fields.forEach((field, index) => {
+          const meta = FIXED_FIELD_TYPES.find(type => type.value === field.dataType);
+          const name = typeof field.name === 'string' ? field.name.trim() : '';
+          if (!name || name !== field.name || names.has(name) || ['__proto__', 'constructor', 'prototype'].includes(name)) throw new Error(`字段 ${index + 1}：名称为空、重复或无效`);
+          if (!meta || !['le', 'be'].includes(field.byteOrder)) throw new Error(`字段 ${name}：类型或字节序无效`);
+          if (!Number.isSafeInteger(field.offset) || field.offset < 0 || field.offset + meta.bytes > frameLength) throw new Error(`字段 ${name}：偏移或读取长度超出整帧 ${frameLength} bytes`);
+          names.add(name);
+        });
+      }
+
+      function decodeBinaryFields(bytes, fields) {
+        const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        return fields.map(field => {
+          const type = field.dataType;
+          const meta = FIXED_FIELD_TYPES.find(entry => entry.value === type);
+          if (!meta || !Number.isSafeInteger(field.offset) || field.offset < 0 || field.offset + meta.bytes > bytes.length) throw new Error(`字段 ${field.name} 越界`);
+          const value = type.startsWith('bit')
+            ? (view.getUint8(field.offset) >>> Number(type.slice(3))) & 1
+            : readBinaryValue(view, field.offset, meta.bytes > 1 ? `${type}${field.byteOrder}` : type);
+          return { key: field.name, value };
+        });
+      }
+
+      function renderBinaryFieldsValidation() {
+        const output = document.getElementById('binary-fields-status');
+        try {
+          validateBinaryFields(state.parser.binaryFields, state.parser.binarySchema);
+          output.textContent = '从整帧第 0 字节起算，包含帧头；允许重叠读取，bit0 为 LSB、bit7 为 MSB。';
+          output.dataset.status = 'ok';
+        } catch (error) {
+          output.textContent = error.message;
+          output.dataset.status = 'error';
+        }
+      }
+
+      function renderBinaryFields() {
+        const list = document.getElementById('binary-fields-list');
+        list.innerHTML = state.parser.binaryFields.map(field => `
+          <div class="binary-field-row" data-binary-field-id="${field.id}">
+            <label>名称 <input class="compact-input" data-field-key="name" value="${escapeHtml(field.name)}"></label>
+            <label>偏移 <input class="compact-input" type="number" min="0" step="1" data-field-key="offset" value="${field.offset}"></label>
+            <label>类型 <select class="compact-select" data-field-key="dataType">${FIXED_FIELD_TYPES.map(type => `<option value="${type.value}" ${type.value === field.dataType ? 'selected' : ''}>${type.label}</option>`).join('')}</select></label>
+            <label>字节序 <select class="compact-select" data-field-key="byteOrder" ${FIXED_FIELD_TYPES.find(type => type.value === field.dataType)?.bytes === 1 ? 'disabled' : ''}><option value="le" ${field.byteOrder === 'le' ? 'selected' : ''}>小端 LE</option><option value="be" ${field.byteOrder === 'be' ? 'selected' : ''}>大端 BE</option></select></label>
+            <button class="mini-btn" type="button" data-remove-binary-field aria-label="删除字段">×</button>
+          </div>`).join('') || '<div class="panel-subtitle">尚无固定偏移字段；可添加命名字段供数值框和曲线共用。</div>';
+        syncCustomSelects(list);
+        renderBinaryFieldsValidation();
+      }
+
+      function updateBinaryField(event) {
+        if (event.type === 'input' && event.target.tagName === 'SELECT') return;
+        const row = event.target.closest('[data-binary-field-id]');
+        const field = row && state.parser.binaryFields.find(entry => entry.id === row.dataset.binaryFieldId);
+        const key = event.target.dataset.fieldKey;
+        if (!field || !key) return;
+        field[key] = key === 'offset' ? Number(event.target.value) : event.target.value;
+        if (key === 'dataType') renderBinaryFields();
+        else renderBinaryFieldsValidation();
+        scheduleBinarySchemaReparse();
+        scheduleLocalPrefsSave();
+      }
+
+      function getNumericPanelFields(chart) {
+        const fields = state.parserMode === 'binary' ? getConfiguredBinaryFields(state.parser.binarySchema).filter(field => field.type === 'numeric') : [];
+        const keys = new Set(fields.map(field => field.key));
+        (chart.bindings || []).forEach(key => { if (!keys.has(key)) fields.push({ key, type: 'numeric', missing: true }); });
+        return fields;
+      }
+
+      function renderNumericPanel(chart) {
+        const fields = getNumericPanelFields(chart);
+        return `<article class="chart-panel numeric-panel ${chart.open ? 'is-open' : ''}" data-chart-id="${chart.id}">
+          <div class="numeric-header"><strong data-numeric-heading>${escapeHtml(chart.name)}</strong>
+            <div class="chart-toolbar">
+              <button class="mini-btn" type="button" data-chart-move-up aria-label="上移">↑</button>
+              <button class="mini-btn" type="button" data-chart-move-down aria-label="下移">↓</button>
+              <button class="mini-btn" type="button" data-chart-toggle aria-label="数值框设置">设置</button>
+              <button class="mini-btn" type="button" data-chart-remove aria-label="删除数值框">×</button>
+            </div>
+          </div>
+          <div class="chart-config ${chart.open ? 'open' : ''}">
+            <label>标题 <input class="compact-input" data-numeric-title value="${escapeHtml(chart.name)}"></label>
+            <div class="numeric-field-options">${fields.map(field => `<label><span>${escapeHtml(getFieldDisplayLabel(field.key))}${field.missing ? '（字段不存在）' : ''}</span><input type="checkbox" data-numeric-binding="${escapeHtml(field.key)}" ${chart.bindings.includes(field.key) ? 'checked' : ''}></label>`).join('') || '<span class="panel-subtitle">请先在二进制接收协议中定义字段。</span>'}</div>
+          </div>
+          <div class="numeric-values" data-numeric-values></div>
+        </article>`;
+      }
+
+      function renderNumericPanelValues(chart) {
+        const panel = refs.chartList.querySelector(`[data-chart-id="${chart.id}"]`);
+        const target = panel?.querySelector('[data-numeric-values]');
+        if (!target) return;
+        panel.querySelector('[data-numeric-heading]').textContent = chart.name;
+        const configured = new Set(state.parserMode === 'binary' ? getConfiguredBinaryFields(state.parser.binarySchema).filter(field => field.type === 'numeric').map(field => field.key) : []);
+        const latest = new Map(state.derivedRuntime.latestCards.map(card => [`parsed.${card.key}`, card.value]));
+        target.innerHTML = chart.bindings.map(key => {
+          const series = state.derived.numericSeries[key];
+          const value = configured.has(key) ? (latest.has(key) ? latest.get(key) : series?.[series.length - 1]?.v) : undefined;
+          return `<div class="numeric-value" data-numeric-value="${escapeHtml(key)}"><span>${escapeHtml(getFieldDisplayLabel(key))}</span><strong>${value === undefined ? '等待' : escapeHtml(String(value))}</strong></div>`;
+        }).join('') || '<span class="panel-subtitle">在设置中选择要显示的字段。</span>';
+      }
+
       const BINARY_DATA_TYPES = [
         { value: 'uint8', label: 'UInt8', bytes: 1 },
         { value: 'int8', label: 'Int8', bytes: 1 },
@@ -10946,7 +11083,7 @@
         return fields;
       }
 
-      function getConfiguredBinaryFields(schema) {
+      function getConfiguredBinaryFields(schema, fixedFields = state.parser.binaryFields) {
         const fields = [];
         let dataIndex = 0;
         (schema || []).forEach((row) => {
@@ -10966,6 +11103,7 @@
             fields.push({ key: `parsed.${checksumName}`, type: 'numeric' });
           }
         });
+        (fixedFields || []).forEach(field => fields.push({ key: `parsed.${field.name}`, type: 'numeric' }));
         return fields;
       }
 
@@ -11139,7 +11277,7 @@
         }
       }
 
-      function parseBinarySchemaFrameAt(buffer, schema, startIndex = 0) {
+      function parseBinarySchemaFrameAt(buffer, schema, startIndex = 0, fields = []) {
         if (!Array.isArray(schema) || !schema.length) return null;
         const bytes = Array.isArray(buffer) ? buffer : Array.from(buffer || []);
         if (startIndex >= bytes.length) {
@@ -11232,6 +11370,17 @@
           }
           offset += meta.bytes;
         }
+        if (!checks.some(check => !check.ok)) {
+          try {
+            validateBinaryFields(fields, schema);
+            decodeBinaryFields(Uint8Array.from(bytes.slice(startIndex, offset)), fields).forEach(card => {
+              cards.push(card);
+              values[card.key] = card.value;
+            });
+          } catch (error) {
+            return { status: 'field-error', nextIndex: offset, checks };
+          }
+        }
         return {
           status: checks.some(check => !check.ok) ? 'checksum-error' : 'ok',
           checks,
@@ -11266,12 +11415,12 @@
         return -1;
       }
 
-      function extractBinarySchemaFramesFromBytes(bufferBytes, schema) {
+      function extractBinarySchemaFramesFromBytes(bufferBytes, schema, fields = []) {
         const bytes = Array.isArray(bufferBytes) ? bufferBytes : Array.from(bufferBytes || []);
         const frames = [];
         const checks = [];
         let header;
-        try { header = getBinarySyncHeader(schema); getBinarySchemaLayout(schema); }
+        try { header = getBinarySyncHeader(schema); validateBinaryFields(fields, schema); }
         catch (error) { return { frames, checks, remainder: [] }; }
         const retainTail = Math.max(32, header.length > 0 ? header.length - 1 : 0);
         let offset = 0;
@@ -11285,7 +11434,7 @@
             offset = headerIndex;
           }
 
-          const parsed = parseBinarySchemaFrameAt(bytes, schema, offset);
+          const parsed = parseBinarySchemaFrameAt(bytes, schema, offset, fields);
           if (!parsed || parsed.status === 'incomplete') {
             break;
           }
@@ -11330,7 +11479,7 @@
               nameAuto: Boolean(row.nameAuto),
               ...(row.kind === 'gap' ? { length: row.length ?? (row.value ? safeHexBytes(row.value).length : 1) } : {}),
               ...(row.checksum ? { checksum: { ...row.checksum } } : {})
-            })))}|${state.settings.textEncoding || ''}`;
+            })))}|${JSON.stringify(snapshotBinaryFields())}|${state.settings.textEncoding || ''}`;
       }
 
       function updateDerivedChartFrameStats(runtime, timestamp) {
@@ -11495,7 +11644,7 @@
           runtime.fieldTypes.set(key, 'numeric');
         });
         runtime.binaryRemainders[chunk.direction].push(...chunkBytes);
-        const extracted = extractBinarySchemaFramesFromBytes(runtime.binaryRemainders[chunk.direction], schema);
+        const extracted = extractBinarySchemaFramesFromBytes(runtime.binaryRemainders[chunk.direction], schema, state.parser.binaryFields);
         runtime.binaryRemainders[chunk.direction] = extracted.remainder;
         if (extracted.checks.length) runtime.checksumResult = extracted.checks;
         extracted.frames.forEach((frame) => {
@@ -11643,6 +11792,7 @@
                     cards.push({ key: checksumName, value: '-' });
                   }
                 });
+                state.parser.binaryFields.forEach(field => cards.push({ key: field.name, value: '-' }));
                 return cards;
               })();
       }
@@ -11690,6 +11840,7 @@
           var chartId = panel.dataset.chartId;
           var chart = state.charts.find(function(c) { return c.id === chartId; });
           if (!chart) return;
+          if (chart.type === 'numeric') return;
           var isFft = chart.type === 'fft';
           var showFields = isFft ? allNumeric : allNumeric;
           var bound = chart.bindings || [];
@@ -11792,12 +11943,12 @@
       }
 
       function createChart(type) {
-        const normalizedType = type === 'fft' ? 'fft' : type === 'bar' ? 'bar' : 'time';
+        const normalizedType = ['time', 'fft', 'bar', 'numeric'].includes(type) ? type : 'time';
         const chartTitle = normalizedType === 'time'
           ? `时域图 ${chartIdCounter}`
           : normalizedType === 'fft'
             ? `频域图 ${chartIdCounter}`
-            : `柱状图 ${chartIdCounter}`;
+            : normalizedType === 'numeric' ? `数值框 ${chartIdCounter}` : `柱状图 ${chartIdCounter}`;
         return {
           id: uid('chart'),
           type: normalizedType,
@@ -11972,6 +12123,7 @@
       }
 
       function normalizeChartBindings(chart, selectableFields) {
+        if (chart.type === 'numeric') return getNumericPanelFields(chart);
         if (!selectableFields) selectableFields = getChartSelectableFields(chart && chart.type);
         const available = Array.isArray(selectableFields) ? selectableFields : [];
         if (!available.length) {
@@ -12755,6 +12907,7 @@
       }
 
       function renderChartPanel(chart) {
+        if (chart.type === 'numeric') return renderNumericPanel(chart);
         const fieldItems = normalizeChartBindings(chart);
         const yAxisBindingKey = ensureChartYAxisBinding(chart);
         var configuredMap = {};
@@ -12948,6 +13101,7 @@
           const paintForce = state.ui.chartPaintForce;
           state.ui.chartPaintForce = false;
           state.charts.forEach((chart) => {
+            if (chart.type === 'numeric') { renderNumericPanelValues(chart); return; }
             syncChartViewUi(chart);
             syncChartCanvasHeightUi(chart);
             drawChart(chart, paintForce);
@@ -14180,6 +14334,7 @@
 
       function renderBinaryFrameLayout() {
         if (!refs.binaryFrameLayout) return;
+        renderBinaryFieldsValidation();
         try {
           const layout = getBinarySchemaLayout(state.parser.binarySchema);
           refs.binaryFrameLayout.textContent = `固定整帧长度：${layout.frameLength} bytes · 字节偏移从 0 起算，包含帧头`;
@@ -14254,7 +14409,7 @@
         string(config.parser.text.rule, 'parser.text.rule');
         if (/[\r\n]/.test(config.parser.text.rule)) fail('parser.text.rule', '解析规则必须为单行');
         const binary = config.parser.binary;
-        object(binary, ['rows', 'frameLength'], 'parser.binary');
+        object(binary, ['rows', 'frameLength', 'fields'], 'parser.binary');
         array(binary.rows, 'parser.binary.rows');
         if (!binary.rows.length) fail('parser.binary.rows', '结构表不能为空');
         const names = new Set();
@@ -14281,6 +14436,11 @@
             if (row.value && row.length !== safeHexBytes(row.value).length) fail(path, '旧固定间隔的长度与 HEX 不一致');
           }
         });
+        if (binary.fields !== undefined) {
+          array(binary.fields, 'parser.binary.fields');
+          binary.fields.forEach((field, index) => object(field, ['name', 'offset', 'dataType', 'byteOrder'], `parser.binary.fields[${index}]`));
+        }
+        validateBinaryFields(binary.fields || [], binary.rows);
         const layout = getBinarySchemaLayout(binary.rows);
         if (binary.frameLength !== undefined && binary.frameLength !== layout.frameLength) fail('parser.binary.frameLength', '与结构表计算长度不一致');
         binary.rows.forEach((row, index) => { if (row.offset !== undefined && row.offset !== layout.offsets[index]) fail(`parser.binary.rows[${index}].offset`, '与结构表偏移不一致'); });
@@ -14291,10 +14451,12 @@
           if (row.kind === 'data' || row.kind === 'checksum') fieldKeys.add(`parsed.${row.name || 'checksum'}`);
           if (row.dataType === 'bool8') for (let bit = 0; bit < 8; bit++) fieldKeys.add(`parsed.${row.name}.${bit}`);
         });
+        (binary.fields || []).forEach(field => fieldKeys.add(`parsed.${field.name}`));
+        const numericFieldKeys = new Set(getConfiguredBinaryFields(binary.rows, binary.fields || []).filter(field => field.type === 'numeric').map(field => field.key));
         config.charts.forEach((chart, index) => {
           const path = `charts[${index}]`;
           object(chart, ['chartType', 'title', 'panel', 'channels', 'fft', 'view'], path);
-          choice(chart.chartType, ['time', 'fft', 'bar'], `${path}.chartType`);
+          choice(chart.chartType, ['time', 'fft', 'bar', 'numeric'], `${path}.chartType`);
           string(chart.title, `${path}.title`);
           object(chart.panel, ['configOpen', 'heightPx'], `${path}.panel`);
           bool(chart.panel.configOpen, `${path}.panel.configOpen`);
@@ -14303,6 +14465,7 @@
           array(chart.channels.bindings, `${path}.channels.bindings`);
           chart.channels.bindings.forEach(key => {
             string(key, `${path}.channels.bindings`);
+            if (chart.chartType === 'numeric' && !numericFieldKeys.has(key)) fail(path, `数值字段不存在：${key}`);
             if (!key.startsWith('parsed.') && !fieldKeys.has(key)) fail(path, '字段绑定无效');
             if (config.parser.mode === 'binary' && !fieldKeys.has(key)) fail(path, `字段不存在：${key}`);
           });
@@ -14766,6 +14929,7 @@
         refs.textParseRule.value = state.parser.textRule;
         ensureBinarySchemaRow();
         renderBinarySchemaTable();
+        renderBinaryFields();
         updateParserModeUI();
         renderTextRuleOverlay();
       }
@@ -14790,6 +14954,7 @@
             rule: normalizeTextRule(state.parser.textRule || '')
           },
           binary: {
+            fields: snapshotBinaryFields(),
             rows: (state.parser.binarySchema || []).map((row) => ({
               kind: row.kind,
               value: row.value,
@@ -14837,7 +15002,7 @@
       }
 
       function hydrateChartFromConfig(rawChart) {
-        const nextType = rawChart?.chartType === 'fft' ? 'fft' : rawChart?.chartType === 'bar' ? 'bar' : 'time';
+        const nextType = ['time', 'fft', 'bar', 'numeric'].includes(rawChart?.chartType) ? rawChart.chartType : 'time';
         const base = createChart(nextType);
         base.id = uid('chart');
         base.type = nextType;
@@ -15849,6 +16014,18 @@
       function handleChartInput(event) {
         const chart = findChartFromEvent(event.target);
         if (!chart) return;
+        if (chart.type === 'numeric') {
+          if (event.target.hasAttribute('data-numeric-title')) {
+            chart.name = event.target.value;
+            scheduleRefresh({ charts: true });
+          }
+          if (event.type === 'change' && event.target.hasAttribute('data-numeric-binding')) {
+            const key = event.target.dataset.numericBinding;
+            chart.bindings = event.target.checked ? [...new Set([...chart.bindings, key])] : chart.bindings.filter(binding => binding !== key);
+            scheduleRefresh({ charts: true });
+          }
+          return;
+        }
         if (
           event.type === 'input'
           && (
@@ -16556,6 +16733,35 @@
         });
         chartLayoutObserver.observe(refs.chartList);
 
+        document.getElementById('add-numeric-panel-btn').addEventListener('click', (event) => {
+          event.stopPropagation();
+          closeMenus(event);
+          const panel = createChart('numeric');
+          panel.open = true;
+          state.charts.push(panel);
+          renderCharts(true);
+          scheduleLocalPrefsSave();
+        });
+        document.getElementById('add-binary-field-btn').addEventListener('click', () => {
+          const names = new Set(getConfiguredBinaryFields(state.parser.binarySchema).map(field => field.key));
+          let index = 1;
+          while (names.has(`parsed.field${index}`)) index++;
+          state.parser.binaryFields.push({ id: uid('schema'), name: `field${index}`, offset: 0, dataType: 'uint8', byteOrder: 'le' });
+          renderBinaryFields();
+          scheduleBinarySchemaReparse();
+          scheduleLocalPrefsSave();
+        });
+        const fieldsList = document.getElementById('binary-fields-list');
+        fieldsList.addEventListener('input', updateBinaryField);
+        fieldsList.addEventListener('change', updateBinaryField);
+        fieldsList.addEventListener('click', event => {
+          if (!event.target.closest('[data-remove-binary-field]')) return;
+          const id = event.target.closest('[data-binary-field-id]').dataset.binaryFieldId;
+          state.parser.binaryFields = state.parser.binaryFields.filter(field => field.id !== id);
+          renderBinaryFields();
+          scheduleBinarySchemaReparse();
+          scheduleLocalPrefsSave();
+        });
         refs.addTimeChartBtn.addEventListener('click', () => {
           state.charts.push(createChart('time'));
           renderCharts(true);
