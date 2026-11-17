@@ -5633,6 +5633,20 @@
       .status-pill-title small { font-size: 8px; }
       .logo-mode-switch { margin-left: 2px; padding-left: 4px; }
     }
+    /* Device profile controls share the existing parser layout. */
+    .device-config-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 0; }
+    .device-config-bar label { font-size: 12px; color: var(--text-soft); }
+    .device-config-bar input { min-width: 80px; width: 120px; flex: 1 1 100px; }
+    .binary-name-cell { display: flex; align-items: center; gap: 4px; min-width: 0; }
+    .binary-name-cell input { width: 100%; min-width: 0; }
+    .binary-offset { flex: 0 0 auto; font: 10px var(--font-mono); }
+    #binary-frame-layout { white-space: normal; }
+    .protocol-checksum-controls { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 0; }
+    .protocol-checksum-controls label { display: flex; align-items: center; gap: 4px; font-size: 12px; white-space: nowrap; }
+    .protocol-checksum-controls input[type="number"] { width: 76px; }
+    .binary-schema-row > .protocol-checksum-controls { grid-column: 1 / -1; }
+    #tx-checksum-preview { display: block; white-space: normal; overflow-wrap: anywhere; max-height: 70px; overflow: auto; }
+    #tx-checksum-preview[data-status="error"], #rx-checksum-result[data-status="error"] { color: var(--danger, #e06363); }
   </style>
 </head>
 <body spellcheck="false">
@@ -5736,6 +5750,10 @@
                 <span class="menu-config-warning">此操作会丢失当前设置</span>
                 <button id="confirm-user-config-btn" class="danger-btn" type="button">确认</button>
                 <button id="cancel-user-config-btn" type="button">取消</button>
+              </div>
+              <div class="menu-config-line">
+                <button id="save-device-config-menu" type="button">保存设备 JSON</button>
+                <button id="open-device-config-menu" type="button">打开设备 JSON</button>
               </div>
               <a id="download-local-link" href="index.html" download="PortScope串口工作台.html">保存工作台 HTML / 源码</a>
             </div>
@@ -5947,6 +5965,12 @@
             </div>
           </div>
 
+          <div class="device-config-bar">
+            <label for="device-config-name">设备配置</label>
+            <input id="device-config-name" class="compact-input" value="设备配置" aria-label="设备配置名称" maxlength="100">
+            <button id="save-device-config-btn" class="secondary-btn" type="button">保存 JSON</button>
+            <button id="open-device-config-btn" class="secondary-btn" type="button">打开 JSON</button>
+          </div>
           <section id="text-parser-pane" class="parser-config-card">
             <div class="parser-card-head">
               <div class="panel-title">文本解析配置
@@ -5969,7 +5993,7 @@
             <div class="parser-card-head">
               <div>
                 <div class="panel-title">十六进制结构表
-                  <span class="help-icon" data-tip="行类型（按表格下拉顺序）：&#10;• 帧头 — 帧起始标识，16进制&#10;  留空则跳过&#10;• 帧尾 — 帧结束标识，16进制&#10;  留空则不检查帧尾&#10;• 数据 — 数值数据，需选择&#10;  数据类型 + 填写标签名&#10;• 校验和 — 自动计算 SUM8&#10;  仅覆盖 data 行的字节&#10;• 间隔符 — 留空占位 1 字节&#10;  填入则匹配指定16进制&#10;&#10;数值大小端说明：&#10;LE = Little Endian（低位在前）&#10;BE = Big Endian（高位在前）&#10;&#10;可用数据类型：&#10;UInt8 / Int8&#10;UInt16 LE/BE / Int16 LE/BE&#10;UInt32 LE/BE / Int32 LE/BE&#10;Float32 LE/BE / Bool(8bit)">?</span>
+                  <span class="help-icon" data-tip="行类型（按表格下拉顺序）：&#10;• 帧头 — 帧起始标识，16进制&#10;  留空则跳过&#10;• 帧尾 — 帧结束标识，16进制&#10;  留空则不检查帧尾&#10;• 数据 — 数值数据，需选择&#10;  数据类型 + 填写标签名&#10;• 校验和 — 自动计算 SUM8&#10;  仅覆盖 data 行的字节&#10;• 间隔区域 — 跳过指定 n 字节&#10;  旧固定 HEX 匹配规则保留&#10;偏移从 0 起算，整帧长度由结构表计算&#10;&#10;数值大小端说明：&#10;LE = Little Endian（低位在前）&#10;BE = Big Endian（高位在前）&#10;&#10;可用数据类型：&#10;UInt8 / Int8&#10;UInt16 LE/BE / Int16 LE/BE&#10;UInt32 LE/BE / Int32 LE/BE&#10;Float32 LE/BE / Bool(8bit)">?</span>
                 </div>
               </div>
               <button id="add-binary-row-btn" class="secondary-btn">新增一行</button>
@@ -5982,6 +6006,8 @@
                 <span></span>
               </div>
               <div id="binary-schema-list" class="binary-schema-list"></div>
+              <div id="binary-frame-layout" class="panel-subtitle" role="status"></div>
+              <div id="rx-checksum-result" class="panel-subtitle" role="status"></div>
             </div>
           </section>
 
@@ -6105,6 +6131,11 @@
                   <textarea id="send-input" placeholder="输入发送内容；HEX 模式示例：AA 55 01 02"></textarea>
                   <button id="send-now-btn" class="wide-send-btn">立即发送</button>
                 </div>
+                <details id="tx-checksum-panel"><summary>发送校验（所有发送入口共用）</summary>
+                  <div id="tx-checksum-controls" class="protocol-checksum-controls"></div>
+                  <div class="panel-subtitle">偏移从 0 起算，包含帧头和追加换行；内容中请预留 1/2 个校验字节，计算后覆盖。关闭时原样发送。</div>
+                </details>
+                <output id="tx-checksum-preview" class="panel-subtitle" aria-live="polite"></output>
               </div>
 
               <div class="send-modebar">
@@ -6128,6 +6159,7 @@
     </main>
   </div>
 
+  <input id="device-config-file-input" type="file" class="hidden" accept=".json,application/json">
   <input id="timeline-file-input" type="file" class="hidden" accept=".csv,.txt,.bin,.timeline">
   <div id="version-modal-backdrop" class="version-modal-backdrop" aria-hidden="true">
     <section class="version-modal" role="dialog" aria-modal="true" aria-labelledby="version-modal-title">
@@ -6241,6 +6273,9 @@
         systemMenu: document.getElementById('system-menu'),
         configMenuRow: document.getElementById('config-menu-row'),
         configMenuConfirmRow: document.getElementById('config-menu-confirm-row'),
+        deviceConfigName: document.getElementById('device-config-name'),
+        deviceConfigFileInput: document.getElementById('device-config-file-input'),
+        binaryFrameLayout: document.getElementById('binary-frame-layout'),
         copyUserConfigBtn: document.getElementById('copy-user-config-btn'),
         pasteUserConfigBtn: document.getElementById('paste-user-config-btn'),
         resetUserConfigBtn: document.getElementById('reset-user-config-btn'),
@@ -6362,12 +6397,15 @@
         : 'system';
       const state = {
         version: VERSION,
+        deviceName: '设备配置',
         theme: initialSavedTheme,
         layoutExpanded: false,
         parserMode: 'text',
         serial: {
           supported: isWebSerialApiAvailable(),
           connected: false,
+          requireManualConnect: false,
+          connectTask: null,
           port: null,
           portHint: null,
           portInfoHint: null,
@@ -6493,6 +6531,7 @@
           chartFrameIntervalMs: 0,
           successfulFrames: [],
           fieldTypes: new Map(),
+          checksumResult: null,
           latestCards: [],
           binaryRemainders: { rx: [], tx: [] }
         },
@@ -6551,6 +6590,7 @@
         timelineExportOpenId: null,
         chartPickerOpenId: '',
         pendingConfigAction: '',
+        deviceConfigImporting: false,
         versionModalMarkOnClose: false,
           terminalAtBottom: true,
           windowFocused: document.hasFocus(),
@@ -7147,8 +7187,110 @@
         return `${action} | 串口可能被占用`;
       }
 
+      function normalizeProtocolChecksum(config = {}) {
+        return { enabled: config.enabled ?? false, algorithm: config.algorithm ?? 'sum8',
+          start: config.start ?? 0, length: config.length ?? 1, offset: config.offset ?? 1,
+          byteOrder: config.byteOrder ?? 'le', ...(config.legacy ? { legacy: true } : {}) };
+      }
+
+      function checksumWidth(config) {
+        return config.algorithm === 'crc16-modbus' ? 2 : 1;
+      }
+
+      function validateProtocolChecksum(config, frameLength = null, offset = config.offset, allowLegacy = false) {
+        if (typeof config.enabled !== 'boolean' || !['sum8', 'xor8', 'lrc8', 'crc16-modbus'].includes(config.algorithm)
+          || !['le', 'be'].includes(config.byteOrder)) throw new Error('校验算法或字节顺序无效');
+        if (config.legacy !== undefined && (config.legacy !== true || !allowLegacy || config.algorithm !== 'sum8')) throw new Error('旧校验仅支持 SUM8');
+        if (config.legacy) return;
+        if (![config.start, config.length, offset].every(Number.isSafeInteger)
+          || config.start < 0 || config.length < 1 || offset < 0
+          || config.start + config.length > SERIAL_BUFFER_SIZE || offset + checksumWidth(config) > SERIAL_BUFFER_SIZE) {
+          throw new Error('校验起始偏移、长度和字段位置必须为有效整数');
+        }
+        if (!config.enabled) return;
+        if (config.start < offset + checksumWidth(config) && offset < config.start + config.length) throw new Error('计算范围不能包含校验字段');
+        if (frameLength !== null && (config.start + config.length > frameLength || offset + checksumWidth(config) > frameLength)) throw new Error('校验范围或字段超出最终帧长度');
+      }
+
+      function computeProtocolChecksum(bytes, algorithm) {
+        let value = algorithm === 'crc16-modbus' ? 0xFFFF : 0;
+        for (const byte of bytes) {
+          if (algorithm === 'crc16-modbus') {
+            value ^= byte;
+            for (let bit = 0; bit < 8; bit++) value = (value >>> 1) ^ ((value & 1) ? 0xA001 : 0);
+          } else if (algorithm === 'xor8') value ^= byte;
+          else value = (value + byte) & 0xFF;
+        }
+        return algorithm === 'lrc8' ? (-value) & 0xFF : value;
+      }
+
+      function encodeProtocolChecksum(value, config) {
+        if (checksumWidth(config) === 1) return Uint8Array.of(value & 0xFF);
+        return Uint8Array.from(config.byteOrder === 'be' ? [value >>> 8, value & 0xFF] : [value & 0xFF, value >>> 8]);
+      }
+
+      function getReceiveChecksum(row) {
+        return row.checksum || { enabled: true, algorithm: 'sum8', legacy: true, start: 0, length: 1, byteOrder: 'le' };
+      }
+
+      function checksumControls(config, receive = false) {
+        const label = receive ? '接收' : '发送';
+        const select = (value, title) => `<option value="${value}" ${config.algorithm === value && !config.legacy ? 'selected' : ''}>${title}</option>`;
+        return `<label><input type="checkbox" data-checksum-key="enabled" ${config.enabled ? 'checked' : ''}>${label}校验</label>
+          <label>算法 <select class="compact-select" data-checksum-key="algorithm" aria-label="${label}校验算法">
+          ${receive ? `<option value="legacy" ${config.legacy ? 'selected' : ''}>SUM8（旧数据行范围）</option>` : ''}
+          ${select('sum8', 'SUM8')}${select('xor8', 'XOR8')}${select('lrc8', 'LRC8')}${select('crc16-modbus', 'CRC-16/MODBUS')}</select></label>
+          <label>起始偏移 <input class="compact-input" type="number" min="0" step="1" data-checksum-key="start" value="${config.start}" ${config.legacy ? 'disabled' : ''}></label>
+          <label>计算长度 <input class="compact-input" type="number" min="1" step="1" data-checksum-key="length" value="${config.length}" ${config.legacy ? 'disabled' : ''}></label>
+          ${receive ? '' : `<label>校验位置 <input class="compact-input" type="number" min="0" step="1" data-checksum-key="offset" value="${config.offset}"></label>`}
+          <label>CRC 字节序 <select class="compact-select" data-checksum-key="byteOrder" aria-label="${label}CRC字节序"><option value="le" ${config.byteOrder === 'le' ? 'selected' : ''}>低字节先</option><option value="be" ${config.byteOrder === 'be' ? 'selected' : ''}>高字节先</option></select></label>`;
+      }
+
+      function renderTransmitChecksumControls() {
+        document.getElementById('tx-checksum-controls').innerHTML = checksumControls(normalizeProtocolChecksum(state.settings.txChecksum));
+        renderTransmitChecksumPreview();
+      }
+
+      function renderTransmitChecksumPreview() {
+        const output = document.getElementById('tx-checksum-preview');
+        if (!output) return;
+        try {
+          const { payload, sendOptions } = getSendPayloadArgs(refs.sendInput.value, refs.sendInput.dataset.rawHex || '');
+          const frame = buildPayloadFrame(payload, sendOptions);
+          output.textContent = `最终 HEX：${bytesToHex(frame.bytes) || '（空）'}`;
+          output.dataset.status = 'ok';
+        } catch (error) {
+          output.textContent = `无法发送：${error.message}`;
+          output.dataset.status = 'error';
+        }
+      }
+
+      function updateChecksumControl(event) {
+        const key = event.target.dataset.checksumKey;
+        if (!key) return;
+        const rowElement = event.target.closest('[data-binary-row-id]');
+        const row = rowElement && state.parser.binarySchema.find(entry => entry.id === rowElement.dataset.binaryRowId);
+        const config = { ...(row ? getReceiveChecksum(row) : normalizeProtocolChecksum(state.settings.txChecksum)) };
+        if (key === 'enabled') config.enabled = event.target.checked;
+        else if (key === 'algorithm') {
+          config.algorithm = event.target.value === 'legacy' ? 'sum8' : event.target.value;
+          delete config.legacy;
+          if (event.target.value === 'legacy') config.legacy = true;
+        } else config[key] = ['start', 'length', 'offset'].includes(key) ? Number(event.target.value) : event.target.value;
+        if (row) {
+          row.checksum = config;
+          renderBinaryFrameLayout();
+          scheduleBinarySchemaReparse(key === 'algorithm');
+        } else {
+          state.settings.txChecksum = config;
+          scheduleRefresh();
+          scheduleLocalPrefsSave();
+        }
+      }
+
       function normalizeSendOptions(sendOptions = state.settings) {
         return {
+          txChecksum: normalizeProtocolChecksum(sendOptions.txChecksum ?? state.settings.txChecksum),
           sendMode: sendOptions.sendMode === 'hex' ? 'hex' : 'ascii',
           textEncoding: sendOptions.textEncoding || state.settings.textEncoding,
           appendNewline: typeof sendOptions.appendNewline === 'boolean' ? sendOptions.appendNewline : Boolean(state.settings.appendNewline),
@@ -7608,6 +7750,12 @@
         }
         if (options.appendNewline) {
           bytes = appendLineEnding(bytes, options.newlineMode);
+        }
+        validateProtocolChecksum(options.txChecksum, bytes.length);
+        if (options.txChecksum.enabled) {
+          const config = options.txChecksum;
+          bytes.set(encodeProtocolChecksum(computeProtocolChecksum(bytes.slice(config.start, config.start + config.length), config.algorithm), config), config.offset);
+          displayText = bytesToHex(bytes);
         }
         return { bytes, displayText, options };
       }
@@ -9167,6 +9315,7 @@
       }
 
       function shouldScheduleReconnect(reason = 'auto') {
+        if (state.ui.deviceConfigImporting || state.serial.requireManualConnect) return false;
         if (!state.serial.portHint) return false;
         if (reason === 'blur-release') {
           return Boolean(state.settings.releaseSignalsOnBlur)
@@ -9409,7 +9558,16 @@
         return connected;
       }
 
-      async function connectSerial(source = 'manual', preferredPort = null, reconnectSession = 0) {
+      function connectSerial(source = 'manual', preferredPort = null, reconnectSession = 0) {
+        if (state.serial.connectTask) return state.serial.connectTask;
+        const task = performConnectSerial(source, preferredPort, reconnectSession);
+        state.serial.connectTask = task;
+        return task.finally(() => { if (state.serial.connectTask === task) state.serial.connectTask = null; });
+      }
+
+      async function performConnectSerial(source = 'manual', preferredPort = null, reconnectSession = 0) {
+        if (state.ui.deviceConfigImporting || (state.serial.requireManualConnect && source !== 'manual')) return false;
+        if (source === 'manual') state.serial.requireManualConnect = false;
         if (!state.serial.supported) {
           toast('不支持 Web Serial API', '请使用 Chrome 或 Edge，在 HTTPS 或 localhost 下打开工作台。', 'error');
           return false;
@@ -9422,10 +9580,14 @@
           port = source === 'manual'
             ? await navigator.serial.requestPort()
             : (preferredPort || state.serial.portHint);
-          if (!port) return false;
+          if (!port || state.ui.deviceConfigImporting) return false;
           state.serial.port = port;
           state.serial.portHint = port;
           await port.open(options);
+          if (state.ui.deviceConfigImporting || state.serial.requireManualConnect) {
+            await port.close().catch(() => {});
+            return false;
+          }
           if (source === 'reconnect' && (reconnectSession !== state.serial.reconnectSession || !state.serial.reconnectWanted)) {
             await port.close().catch(() => {});
             return false;
@@ -9696,6 +9858,7 @@
       }
 
       async function sendPayload(payload, source = 'manual', sendOptions = state.settings, metadataExtra = {}) {
+        if (state.ui.deviceConfigImporting) return false;
         if (!state.serial.connected || !state.serial.writer) {
           toast('发送失败', '串口未连接，无法发送当前内容。', 'warn');
           return false;
@@ -9921,7 +10084,7 @@
       }
 
       async function tryInitialSerialConnectPrompt() {
-        if (!state.serial.supported || state.serial.connected) return;
+        if (state.ui.deviceConfigImporting || state.serial.requireManualConnect || !state.serial.supported || state.serial.connected) return;
         try {
           const authorizedPorts = await navigator.serial.getPorts();
           if (authorizedPorts.length === 1) {
@@ -10345,7 +10508,8 @@
           value: '',
           dataType: 'int8',
           name: '',
-          nameAuto: kind === 'data'
+          nameAuto: kind === 'data',
+          length: 1
         };
         if (kind === 'header') row.value = 'A5';
         if (kind === 'footer') row.value = '5A';
@@ -10415,17 +10579,23 @@
                 <option value="checksum" ${row.kind === 'checksum' ? 'selected' : ''}>校验和</option>
                 <option value="gap" ${row.kind === 'gap' ? 'selected' : ''}>间隔符</option>
               </select>
-              ${usesLiteral
+              ${row.kind === 'gap'
+                ? (row.value
+                  ? `<input class="compact-input" value="旧匹配 ${escapeHtml(row.value)}" readonly title="保留旧配置固定匹配；新建间隔区域只跳过 n 字节">`
+                  : `<input class="compact-input" type="number" min="1" max="65536" step="1" data-binary-length value="${row.length ?? 1}" aria-label="跳过字节数" title="跳过 n bytes">`)
+                : usesLiteral
                 ? `<input class="compact-input" data-binary-value value="${escapeHtml(row.value || '')}" placeholder="${escapeHtml(literalPlaceholder)}">`
                 : usesChecksum
-                  ? `<input class="compact-input" value="SUM8" readonly tabindex="-1">`
+                  ? `<span class="panel-subtitle">${getReceiveChecksum(row).algorithm.toUpperCase()} · ${getBinaryRowLength(row)} byte(s)</span>`
                   : `<select class="compact-select" data-binary-type>${buildBinaryTypeOptions(row.dataType || 'int8')}</select>`}
-              <input class="compact-input" data-binary-name value="${escapeHtml(row.name || '')}" placeholder="name 标签">
+              <div class="binary-name-cell"><input class="compact-input" data-binary-name value="${escapeHtml(row.name || '')}" placeholder="name 标签"></div>
               <button class="mini-btn" type="button" aria-label="删除此行" title="删除此行" data-remove-binary-row ${state.parser.binarySchema.length > 1 ? '' : 'disabled'}>×</button>
+              ${usesChecksum ? `<div class="protocol-checksum-controls">${checksumControls(getReceiveChecksum(row), true)}<span class="panel-subtitle">位置由行顺序决定；关闭校验仍保留字段宽度。</span></div>` : ''}
             </div>
           `;
         }).join('');
         syncCustomSelects(refs.binarySchemaList);
+        renderBinaryFrameLayout();
       }
 
       function updateBinaryRowAutoName(row, rowEl = null) {
@@ -10450,6 +10620,8 @@
           const valueInput = rowEl.querySelector('[data-binary-value]');
           const typeSelect = rowEl.querySelector('[data-binary-type]');
           const nameInput = rowEl.querySelector('[data-binary-name]');
+          const lengthInput = rowEl.querySelector('[data-binary-length]');
+          if (lengthInput) row.length = Number(lengthInput.value);
           if (kindSelect) row.kind = kindSelect.value;
           if (valueInput) row.value = valueInput.value;
           if (typeSelect) row.dataType = typeSelect.value;
@@ -10469,6 +10641,8 @@
           invalidateDerivedCaches();
           if (needsRerender) {
             renderBinarySchemaTable();
+          } else {
+            renderBinaryFrameLayout();
           }
           scheduleRefresh();
         }, 80);
@@ -10949,17 +11123,18 @@
         }
       }
 
-      function computeChecksum8(bytes) {
-        return (Array.isArray(bytes) ? bytes : Array.from(bytes || []))
-          .reduce((sum, value) => (sum + (Number(value) & 0xFF)) & 0xFF, 0);
-      }
-
       function parseBinarySchemaFrameAt(buffer, schema, startIndex = 0) {
         if (!Array.isArray(schema) || !schema.length) return null;
         const bytes = Array.isArray(buffer) ? buffer : Array.from(buffer || []);
         if (startIndex >= bytes.length) {
           return { status: 'incomplete', nextIndex: startIndex };
         }
+        let layout;
+        try { layout = getBinarySchemaLayout(schema); } catch (error) {
+          return { status: 'mismatch', nextIndex: startIndex + 1 };
+        }
+        if (startIndex + layout.frameLength > bytes.length) return { status: 'incomplete', nextIndex: startIndex };
+        const checks = [];
         const view = new DataView(Uint8Array.from(bytes).buffer);
         const cards = [];
         const values = {};
@@ -10969,10 +11144,11 @@
           if (row.kind === 'gap') {
             const literal = safeHexBytes(row.value);
             if (!literal.length) {
-              if (offset + 1 > bytes.length) {
+              const length = getBinaryRowLength(row);
+              if (offset + length > bytes.length) {
                 return { status: 'incomplete', nextIndex: startIndex };
               }
-              offset += 1;
+              offset += length;
               continue;
             }
             if (offset + literal.length > bytes.length) {
@@ -10999,23 +11175,18 @@
             continue;
           }
           if (row.kind === 'checksum') {
-            if (offset + 1 > bytes.length) {
-              return { status: 'incomplete', nextIndex: startIndex };
-            }
-            const checksumByte = bytes[offset] & 0xFF;
-            const expectedChecksum = computeChecksum8(checksumBytes);
+            const config = getReceiveChecksum(row);
+            const width = checksumWidth(config);
+            const actual = Uint8Array.from(bytes.slice(offset, offset + width));
+            const input = config.legacy ? checksumBytes : bytes.slice(startIndex + config.start, startIndex + config.start + config.length);
+            const expected = encodeProtocolChecksum(computeProtocolChecksum(input, config.algorithm), config);
+            const ok = !config.enabled || actual.every((value, index) => value === expected[index]);
             const checksumName = String(row.name || 'checksum').trim() || 'checksum';
-            const checksumOk = checksumByte === expectedChecksum;
-            const actualHex = bytesToCompactHex([checksumByte]);
-            const expectedHex = bytesToCompactHex([expectedChecksum]);
-            cards.push({
-              key: checksumName,
-              value: checksumByte,
-              display: checksumOk ? actualHex : `${actualHex}!=${expectedHex}`,
-              status: checksumOk ? 'ok' : 'error'
-            });
-            values[checksumName] = checksumByte;
-            offset += 1;
+            const value = width === 1 ? actual[0] : new DataView(actual.buffer).getUint16(0, config.byteOrder === 'le');
+            if (config.enabled) checks.push({ ok, name: checksumName, algorithm: config.algorithm, actual: bytesToHex(actual), expected: bytesToHex(expected) });
+            cards.push({ key: checksumName, value, display: bytesToHex(actual), status: ok ? 'ok' : 'error' });
+            values[checksumName] = value;
+            offset += width;
             continue;
           }
           const meta = getBinaryTypeMeta(row.dataType);
@@ -11046,7 +11217,8 @@
           offset += meta.bytes;
         }
         return {
-          status: 'ok',
+          status: checks.some(check => !check.ok) ? 'checksum-error' : 'ok',
+          checks,
           nextIndex: offset,
           frame: {
             cards,
@@ -11057,8 +11229,9 @@
       }
 
       function getBinarySyncHeader(schema) {
-        const headerRow = (schema || []).find((row) => row.kind === 'header' && safeHexBytes(row.value).length);
-        return headerRow ? safeHexBytes(headerRow.value) : [];
+        // A sync header is usable only at byte offset zero.
+        const headerRow = (schema || []).find((row) => getBinaryRowLength(row) > 0);
+        return headerRow?.kind === 'header' ? safeHexBytes(headerRow.value) : [];
       }
 
       function findSubarrayIndex(source, pattern, fromIndex = 0) {
@@ -11080,7 +11253,10 @@
       function extractBinarySchemaFramesFromBytes(bufferBytes, schema) {
         const bytes = Array.isArray(bufferBytes) ? bufferBytes : Array.from(bufferBytes || []);
         const frames = [];
-        const header = getBinarySyncHeader(schema);
+        const checks = [];
+        let header;
+        try { header = getBinarySyncHeader(schema); getBinarySchemaLayout(schema); }
+        catch (error) { return { frames, checks, remainder: [] }; }
         const retainTail = Math.max(32, header.length > 0 ? header.length - 1 : 0);
         let offset = 0;
 
@@ -11088,7 +11264,7 @@
           if (header.length) {
             const headerIndex = findSubarrayIndex(bytes, header, offset);
             if (headerIndex === -1) {
-              return { frames, remainder: bytes.slice(Math.max(offset, bytes.length - retainTail)) };
+              return { frames, checks, remainder: bytes.slice(Math.max(offset, bytes.length - retainTail)) };
             }
             offset = headerIndex;
           }
@@ -11101,11 +11277,12 @@
             offset = Math.max(offset + 1, parsed.nextIndex || (offset + 1));
             continue;
           }
-          frames.push(parsed.frame);
+          checks.push(...(parsed.checks || []));
+          if (parsed.status === 'ok') frames.push(parsed.frame);
           offset = parsed.nextIndex;
         }
 
-        return { frames, remainder: bytes.slice(offset) };
+        return { frames, checks, remainder: bytes.slice(offset) };
       }
 
       function buildRecommendedRule(events) {
@@ -11134,7 +11311,9 @@
               value: row.value,
               dataType: row.dataType,
               name: row.name,
-              nameAuto: Boolean(row.nameAuto)
+              nameAuto: Boolean(row.nameAuto),
+              ...(row.kind === 'gap' ? { length: row.length ?? (row.value ? safeHexBytes(row.value).length : 1) } : {}),
+              ...(row.checksum ? { checksum: { ...row.checksum } } : {})
             })))}|${state.settings.textEncoding || ''}`;
       }
 
@@ -11302,6 +11481,7 @@
         runtime.binaryRemainders[chunk.direction].push(...chunkBytes);
         const extracted = extractBinarySchemaFramesFromBytes(runtime.binaryRemainders[chunk.direction], schema);
         runtime.binaryRemainders[chunk.direction] = extracted.remainder;
+        if (extracted.checks.length) runtime.checksumResult = extracted.checks;
         extracted.frames.forEach((frame) => {
           if (!runtime.allCardsMap) runtime.allCardsMap = {};
           frame.cards.forEach(function(c) { runtime.allCardsMap[c.key] = c.value; });
@@ -11783,6 +11963,15 @@
           return chart.bindings.map((key) => ({ key, type: 'numeric' }));
         }
         const allowed = new Set(available.map((field) => field.key));
+        // Text field names may arrive only after the saved device starts reporting.
+        if (state.parserMode === 'text') {
+          (chart.bindings || []).forEach((key) => {
+            if (key.startsWith('parsed.') && !allowed.has(key)) {
+              available.push({ key, type: 'numeric' });
+              allowed.add(key);
+            }
+          });
+        }
         chart.bindings = chart.bindings.filter((key) => allowed.has(key));
         return available;
       }
@@ -13774,6 +13963,7 @@
       }
 
       function renderDirty() {
+        renderTransmitChecksumPreview();
         const dirty = state.ui.dirty;
         if (dirty.status) {
           updateSerialStatus();
@@ -13796,6 +13986,10 @@
           renderDerivedViews();
           dirty.derived = false;
         }
+        const result = document.getElementById('rx-checksum-result');
+        const checks = state.derivedRuntime.checksumResult;
+        result.textContent = state.parserMode !== 'binary' || !checks ? '' : checks.map(check => `${check.name} ${check.algorithm.toUpperCase()}：${check.ok ? '通过' : `失败，实际 ${check.actual} / 期望 ${check.expected}（本帧不更新解析值和图表）`}`).join('；');
+        result.dataset.status = checks?.some(check => !check.ok) ? 'error' : 'ok';
         if (dirty.monitor) {
           renderMonitor();
           dirty.monitor = false;
@@ -13902,6 +14096,7 @@
           chartFrameIntervalMs: 0,
           successfulFrames: [],
           fieldTypes: new Map(),
+          checksumResult: null,
           latestCards: [],
           textNameWindow: [],
           stableTextNames: new Set(),
@@ -13931,6 +14126,262 @@
             };
           })
         };
+      }
+
+      function getBinaryRowLength(row) {
+        if (row.kind === 'header' || row.kind === 'footer' || (row.kind === 'gap' && row.value)) {
+          return safeHexBytes(row.value).length;
+        }
+        if (row.kind === 'gap') {
+          const length = row.length ?? 1;
+          if (!Number.isSafeInteger(length) || length < 1 || length > SERIAL_BUFFER_SIZE) {
+            throw new Error('间隔长度必须为 1～65536 的整数');
+          }
+          return length;
+        }
+        return row.kind === 'checksum' ? checksumWidth(getReceiveChecksum(row)) : getBinaryTypeMeta(row.dataType).bytes;
+      }
+
+      function getBinarySchemaLayout(rows) {
+        let frameLength = 0;
+        const offsets = rows.map((row) => {
+          const offset = frameLength;
+          frameLength += getBinaryRowLength(row);
+          return offset;
+        });
+        if (!frameLength || frameLength > SERIAL_BUFFER_SIZE) throw new Error('整帧长度必须为 1～65536 bytes');
+        rows.forEach((row, index) => {
+          if (row.kind === 'checksum') validateProtocolChecksum(getReceiveChecksum(row), frameLength, offsets[index], true);
+        });
+        return { frameLength, offsets };
+      }
+
+      function renderBinaryFrameLayout() {
+        if (!refs.binaryFrameLayout) return;
+        try {
+          const layout = getBinarySchemaLayout(state.parser.binarySchema);
+          refs.binaryFrameLayout.textContent = `固定整帧长度：${layout.frameLength} bytes · 字节偏移从 0 起算，包含帧头`;
+          refs.binarySchemaList.querySelectorAll('[data-binary-row-id]').forEach((element, index) => {
+            element.querySelector('[data-binary-offset]')?.remove();
+            const label = document.createElement('span');
+            label.dataset.binaryOffset = '';
+            label.className = 'panel-subtitle binary-offset';
+            label.textContent = `@${layout.offsets[index]}`;
+            element.querySelector('[data-binary-name]').insertAdjacentElement('afterend', label);
+          });
+        } catch (error) {
+          refs.binaryFrameLayout.textContent = error.message;
+        }
+      }
+
+      function validateDeviceConfig(payload) {
+        const fail = (path, message) => { throw new Error(`${path}：${message}`); };
+        const object = (value, keys, path) => {
+          if (!value || typeof value !== 'object' || Array.isArray(value)) fail(path, '必须为对象');
+          Object.keys(value).forEach(key => { if (!keys.includes(key)) fail(`${path}.${key}`, '不支持的配置项'); });
+        };
+        const string = (value, path) => { if (typeof value !== 'string') fail(path, '必须为文本'); };
+        const bool = (value, path) => { if (typeof value !== 'boolean') fail(path, '必须为 true 或 false'); };
+        const number = (value, path, min = -Infinity, max = Infinity) => {
+          if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) fail(path, '数值或范围无效');
+        };
+        const integer = (value, path, min, max) => {
+          number(value, path, min, max);
+          if (!Number.isSafeInteger(value)) fail(path, '必须为整数');
+        };
+        const choice = (value, choices, path) => { if (!choices.includes(value)) fail(path, '不支持的值'); };
+        const array = (value, path) => { if (!Array.isArray(value)) fail(path, '必须为数组'); };
+        const hex = (value, path) => {
+          string(value, path);
+          if (!/^[0-9a-f\s,]*$/i.test(value.replace(/0x/gi, ''))) fail(path, 'HEX 内容无效');
+          try { parseHexString(value); } catch (error) { fail(path, 'HEX 字节无效'); }
+        };
+        const legacy = payload?.type === 'SerialWebUserConfig';
+        object(payload, legacy ? ['type', 'version', 'exportedAt', 'exportedAtText', 'userConfig'] : ['type', 'version', 'name', 'config'], '文件');
+        if ((!legacy && payload.type !== 'PortScopeDeviceConfig') || payload.version !== 1) fail('文件', '不支持的文件类型或格式版本');
+        const config = JSON.parse(JSON.stringify(legacy ? payload.userConfig : payload.config));
+        object(config, ['appVersion', 'receiveContentSchemaVersion', 'savedAt', 'deviceName', 'manualConnectRequired', 'theme', 'layout', 'settings', 'parser', 'charts', 'modules', 'autoSend', 'conditionSend', 'presetSend', 'sendDraft'], 'config');
+        const name = legacy ? (config.deviceName || '导入的设备') : payload.name;
+        string(name, 'name');
+        if (!name.trim()) fail('name', '名称不能为空');
+        if (config.appVersion !== undefined) string(config.appVersion, 'appVersion');
+        if (config.savedAt !== undefined) number(config.savedAt, 'savedAt', 0);
+        if (config.deviceName !== undefined) string(config.deviceName, 'deviceName');
+        if (config.manualConnectRequired !== undefined) bool(config.manualConnectRequired, 'manualConnectRequired');
+        if (config.receiveContentSchemaVersion !== undefined) integer(config.receiveContentSchemaVersion, 'receiveContentSchemaVersion', 0, RECEIVE_CONTENT_SCHEMA_VERSION);
+        choice(config.theme, ['system', 'light', 'dark'], 'theme');
+        object(config.layout, ['expanded', 'sidebarCollapsed', 'parserResultsExpanded', 'sendExtensionHeight'], 'layout');
+        Object.entries(config.layout).forEach(([key, value]) => key === 'sendExtensionHeight' ? number(value, `layout.${key}`, 0) : bool(value, `layout.${key}`));
+        const settings = config.settings;
+        const settingsKeys = ['baudRate', 'dataBits', 'stopBits', 'parity', 'releaseSignalsOnBlur', 'flowControl', 'signalDtr', 'signalRts', 'signalBreak', 'autoReconnect', 'rxDisplayMode', 'textEncoding', 'appendTimestamp', 'sendMode', 'newlineMode', 'appendNewline', 'txChecksum'];
+        object(settings, settingsKeys, 'settings');
+        string(settings.baudRate, 'settings.baudRate');
+        if (!/^\d+$/.test(settings.baudRate) || !Number.isSafeInteger(Number(settings.baudRate)) || Number(settings.baudRate) < 1) fail('settings.baudRate', '波特率无效');
+        const options = { dataBits: [7, 8], stopBits: [1, 2], parity: ['none', 'even', 'odd'], flowControl: ['none', 'hardware'], rxDisplayMode: ['text', 'hex'], textEncoding: ['utf-8', 'ascii', 'latin1', 'utf-16le'], sendMode: ['ascii', 'hex'], newlineMode: ['r', 'n', 'rn'] };
+        settingsKeys.filter(key => !['baudRate', 'txChecksum'].includes(key)).forEach(key => options[key] ? choice(settings[key], options[key], `settings.${key}`) : bool(settings[key], `settings.${key}`));
+        const validateChecksumObject = (value, path, receive = false) => {
+          object(value, receive ? ['enabled', 'algorithm', 'start', 'length', 'byteOrder', 'legacy'] : ['enabled', 'algorithm', 'start', 'length', 'offset', 'byteOrder'], path);
+          if (!receive && value.offset === undefined) fail(path, '缺少校验位置');
+          if (['enabled', 'algorithm', 'start', 'length', 'byteOrder'].some(key => value[key] === undefined)) fail(path, '校验配置不完整');
+          validateProtocolChecksum(receive ? { ...value, enabled: false } : value, null, receive ? 0 : value.offset, receive);
+        };
+        if (settings.txChecksum !== undefined) validateChecksumObject(settings.txChecksum, 'settings.txChecksum');
+        object(config.parser, ['mode', 'text', 'binary'], 'parser');
+        choice(config.parser.mode, ['text', 'binary'], 'parser.mode');
+        object(config.parser.text, ['rule'], 'parser.text');
+        string(config.parser.text.rule, 'parser.text.rule');
+        if (/[\r\n]/.test(config.parser.text.rule)) fail('parser.text.rule', '解析规则必须为单行');
+        const binary = config.parser.binary;
+        object(binary, ['rows', 'frameLength'], 'parser.binary');
+        array(binary.rows, 'parser.binary.rows');
+        if (!binary.rows.length) fail('parser.binary.rows', '结构表不能为空');
+        const names = new Set();
+        binary.rows.forEach((row, index) => {
+          const path = `parser.binary.rows[${index}]`;
+          object(row, ['kind', 'value', 'dataType', 'name', 'nameAuto', 'length', 'offset', 'checksum'], path);
+          choice(row.kind, ['header', 'footer', 'gap', 'data', 'checksum'], `${path}.kind`);
+          if (row.checksum !== undefined) {
+            if (row.kind !== 'checksum') fail(path, '校验配置只能用于校验行');
+            validateChecksumObject(row.checksum, `${path}.checksum`, true);
+          }
+          string(row.value, `${path}.value`);
+          string(row.name, `${path}.name`);
+          if (row.nameAuto !== undefined) bool(row.nameAuto, `${path}.nameAuto`);
+          if (row.kind === 'data') {
+            choice(row.dataType, BINARY_DATA_TYPES.map(type => type.value), `${path}.dataType`);
+            if (!row.name.trim() || names.has(row.name)) fail(`${path}.name`, '字段名称为空或重复');
+            names.add(row.name);
+          }
+          if (['header', 'footer', 'gap'].includes(row.kind)) hex(row.value, `${path}.value`);
+          if (row.kind === 'gap') {
+            if (row.length === undefined) row.length = row.value ? safeHexBytes(row.value).length : 1;
+            integer(row.length, `${path}.length`, 1, SERIAL_BUFFER_SIZE);
+            if (row.value && row.length !== safeHexBytes(row.value).length) fail(path, '旧固定间隔的长度与 HEX 不一致');
+          }
+        });
+        const layout = getBinarySchemaLayout(binary.rows);
+        if (binary.frameLength !== undefined && binary.frameLength !== layout.frameLength) fail('parser.binary.frameLength', '与结构表计算长度不一致');
+        binary.rows.forEach((row, index) => { if (row.offset !== undefined && row.offset !== layout.offsets[index]) fail(`parser.binary.rows[${index}].offset`, '与结构表偏移不一致'); });
+        binary.frameLength = layout.frameLength;
+        array(config.charts, 'charts');
+        const fieldKeys = new Set(['raw.rx.length', 'raw.rx.sum', 'raw.rx.byte0', 'raw.tx.length', 'raw.tx.sum', 'raw.tx.byte0', 'raw.any.length', 'raw.any.sum']);
+        binary.rows.forEach(row => {
+          if (row.kind === 'data' || row.kind === 'checksum') fieldKeys.add(`parsed.${row.name || 'checksum'}`);
+          if (row.dataType === 'bool8') for (let bit = 0; bit < 8; bit++) fieldKeys.add(`parsed.${row.name}.${bit}`);
+        });
+        config.charts.forEach((chart, index) => {
+          const path = `charts[${index}]`;
+          object(chart, ['chartType', 'title', 'panel', 'channels', 'fft', 'view'], path);
+          choice(chart.chartType, ['time', 'fft', 'bar'], `${path}.chartType`);
+          string(chart.title, `${path}.title`);
+          object(chart.panel, ['configOpen', 'heightPx'], `${path}.panel`);
+          bool(chart.panel.configOpen, `${path}.panel.configOpen`);
+          number(chart.panel.heightPx, `${path}.panel.heightPx`, 140);
+          object(chart.channels, ['bindings', 'unifyScale', 'selectedYAxisBinding'], `${path}.channels`);
+          array(chart.channels.bindings, `${path}.channels.bindings`);
+          chart.channels.bindings.forEach(key => {
+            string(key, `${path}.channels.bindings`);
+            if (!key.startsWith('parsed.') && !fieldKeys.has(key)) fail(path, '字段绑定无效');
+            if (config.parser.mode === 'binary' && !fieldKeys.has(key)) fail(path, `字段不存在：${key}`);
+          });
+          bool(chart.channels.unifyScale, `${path}.channels.unifyScale`);
+          string(chart.channels.selectedYAxisBinding, `${path}.channels.selectedYAxisBinding`);
+          if (chart.channels.selectedYAxisBinding && chart.channels.selectedYAxisBinding !== '__all__' && !chart.channels.bindings.includes(chart.channels.selectedYAxisBinding)) fail(path, '纵轴字段未绑定');
+          object(chart.fft, ['windowSize', 'frameIntervalMs'], `${path}.fft`);
+          integer(chart.fft.windowSize, `${path}.fft.windowSize`, 2, 65536);
+          if (chart.fft.frameIntervalMs !== '') number(Number(chart.fft.frameIntervalMs), `${path}.fft.frameIntervalMs`, Number.MIN_VALUE);
+          object(chart.view, ['mode', 'zoomX', 'zoomY', 'offsetX', 'offsetY', 'followLatestX', 'baseXMin', 'baseXMax', 'baseYMin', 'baseYMax', 'perChannelY'], `${path}.view`);
+          choice(chart.view.mode, ['auto', 'manual'], `${path}.view.mode`);
+          bool(chart.view.followLatestX, `${path}.view.followLatestX`);
+          ['zoomX', 'zoomY'].forEach(key => number(chart.view[key], `${path}.view.${key}`, Number.MIN_VALUE));
+          ['offsetX', 'offsetY'].forEach(key => number(chart.view[key], `${path}.view.${key}`));
+          ['baseXMin', 'baseXMax', 'baseYMin', 'baseYMax'].forEach(key => { if (chart.view[key] !== null) number(chart.view[key], `${path}.view.${key}`); });
+          ['X', 'Y'].forEach(axis => { if (chart.view[`base${axis}Min`] !== null && chart.view[`base${axis}Max`] !== null && chart.view[`base${axis}Min`] >= chart.view[`base${axis}Max`]) fail(path, '坐标范围无效'); });
+          const perChannel = chart.view.perChannelY;
+          object(perChannel, chart.channels.bindings, `${path}.view.perChannelY`);
+          Object.values(perChannel).forEach(value => {
+            object(value, ['zoom', 'offset', 'baseMin', 'baseMax'], `${path}.view.perChannelY`);
+            Object.entries(value).forEach(([key, numberValue]) => { if (numberValue !== null || !['baseMin', 'baseMax'].includes(key)) number(numberValue, `${path}.view.perChannelY.${key}`, key === 'zoom' ? Number.MIN_VALUE : -Infinity); });
+          });
+        });
+        object(config.modules, ['autoSendOpen', 'conditionSendOpen', 'presetSendOpen'], 'modules');
+        Object.entries(config.modules).forEach(([key, value]) => bool(value, `modules.${key}`));
+        const groups = {
+          autoSend: { array: 'queue', fields: ['enabled', 'payload', 'payloadRawHex'] },
+          conditionSend: { array: 'rules', fields: ['enabled', 'pattern', 'patternRawHex', 'response', 'responseRawHex'] },
+          presetSend: { array: 'items', fields: ['enabled', 'payload', 'payloadRawHex', 'expected', 'expectedRawHex', 'description', 'shortcut'] }
+        };
+        Object.entries(groups).forEach(([key, group]) => {
+          const section = config[key];
+          object(section, [group.array, 'enabled', ...(key === 'autoSend' ? ['intervalMs'] : [])], key);
+          if (section.enabled !== undefined) bool(section.enabled, `${key}.enabled`);
+          if (key === 'autoSend') integer(section.intervalMs, 'autoSend.intervalMs', 100, 2147483647);
+          array(section[group.array], `${key}.${group.array}`);
+          section[group.array].forEach((item, index) => {
+            const path = `${key}.${group.array}[${index}]`;
+            object(item, group.fields, path);
+            Object.entries(item).forEach(([field, value]) => field === 'enabled' ? bool(value, `${path}.${field}`) : field.endsWith('RawHex') ? hex(value, `${path}.${field}`) : string(value, `${path}.${field}`));
+          });
+          section.enabled = false;
+        });
+        object(config.sendDraft, ['text', 'hex'], 'sendDraft');
+        string(config.sendDraft.text, 'sendDraft.text');
+        hex(config.sendDraft.hex, 'sendDraft.hex');
+        config.deviceName = name.trim();
+        config.manualConnectRequired = true;
+        return config;
+      }
+
+      function buildDeviceConfigPayload() {
+        captureBinarySchemaInputsFromRefs();
+        const config = buildLocalPrefsSnapshot();
+        const layout = getBinarySchemaLayout(config.parser.binary.rows);
+        config.parser.binary.frameLength = layout.frameLength;
+        config.parser.binary.rows.forEach((row, index) => { row.offset = layout.offsets[index]; });
+        delete config.manualConnectRequired;
+        ['autoSend', 'conditionSend', 'presetSend'].forEach(key => { delete config[key].enabled; });
+        const payload = { type: 'PortScopeDeviceConfig', version: 1, name: state.deviceName, config };
+        validateDeviceConfig(payload);
+        return payload;
+      }
+
+      function saveDeviceConfig() {
+        try {
+          const payload = buildDeviceConfigPayload();
+          const filename = payload.name.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
+          downloadFile(`${filename}.json`, new Blob([JSON.stringify(payload, null, 2) + '\n'], { type: 'application/json;charset=utf-8' }));
+          toast('设备配置已导出', 'JSON 包含当前规则和布局，不包含日志与运行状态。', 'success');
+        } catch (error) {
+          toast('保存失败', error.message, 'error');
+        }
+      }
+
+      async function openDeviceConfigText(text) {
+        const config = validateDeviceConfig(JSON.parse(text.replace(/^\uFEFF/, '')));
+        if (state.ui.deviceConfigImporting) throw new Error('正在打开设备配置，请稍后重试');
+        state.ui.deviceConfigImporting = true;
+        state.serial.requireManualConnect = true;
+        try {
+          state.autoSend.enabled = false;
+          state.conditionSend.enabled = false;
+          state.presetSend.enabled = false;
+          stopAutoSendTimer();
+          clearPresetExpectations();
+          clearSerialReconfigureTimer();
+          resetReconnectState();
+          if (state.serial.connectTask) await state.serial.connectTask.catch(() => {});
+          if (state.serial.reconfigureTask) await state.serial.reconfigureTask.catch(() => {});
+          if (state.recording.active) archiveCurrentRecording();
+          state.playback.playing = false;
+          if (playerFrame) { cancelAnimationFrame(playerFrame); playerFrame = null; }
+          await disconnectSerial('manual', { awaitCleanup: true });
+          resetSerialRuntimeStateForDefaults();
+          state.activeTimelineId = 'realtime';
+          applyUserConfigSnapshot(config, { reconfigureSerial: false });
+          toast('设备配置已打开', '连接和发送任务已停止，请手动连接设备。', 'success');
+        } finally {
+          state.ui.deviceConfigImporting = false;
+        }
       }
 
       function buildUserConfigExportPayload() {
@@ -14304,7 +14755,9 @@
           value: row?.value || '',
           dataType: row?.dataType || 'int8',
           name: row?.name || (row?.kind === 'checksum' ? 'checksum' : ''),
-          nameAuto: row?.kind === 'checksum' ? true : Boolean(row?.nameAuto)
+          nameAuto: row?.kind === 'checksum' ? true : Boolean(row?.nameAuto),
+          ...(row?.checksum ? { checksum: { ...row.checksum } } : {}),
+          length: row?.length ?? (row?.kind === 'gap' && row?.value ? safeHexBytes(row.value).length : 1)
         };
       }
 
@@ -14320,7 +14773,9 @@
               value: row.value,
               dataType: row.dataType,
               name: row.name,
-              nameAuto: Boolean(row.nameAuto)
+              nameAuto: Boolean(row.nameAuto),
+              ...(row.kind === 'gap' ? { length: row.length ?? (row.value ? safeHexBytes(row.value).length : 1) } : {}),
+              ...(row.checksum ? { checksum: { ...row.checksum } } : {})
             }))
           }
         };
@@ -14401,6 +14856,7 @@
       function normalizePersistedSettings(settings) {
         const source = settings && typeof settings === 'object' ? settings : {};
         return {
+          txChecksum: normalizeProtocolChecksum(source.txChecksum),
           baudRate: String(source.baudRate || state.settings.baudRate),
           dataBits: [7, 8].includes(Number(source.dataBits)) ? Number(source.dataBits) : state.settings.dataBits,
           stopBits: [1, 2].includes(Number(source.stopBits)) ? Number(source.stopBits) : state.settings.stopBits,
@@ -14432,6 +14888,8 @@
           state.ui.sendExtensionHeightOverride = Number.isFinite(savedSendExtensionHeight) && savedSendExtensionHeight > 0
             ? savedSendExtensionHeight
             : 0;
+          state.deviceName = String(snapshot.deviceName || state.deviceName);
+          if (typeof snapshot.manualConnectRequired === 'boolean') state.serial.requireManualConnect = snapshot.manualConnectRequired;
           state.settings = normalizePersistedSettings(snapshot.settings);
 
           if (snapshot.parser || Array.isArray(snapshot.charts)) {
@@ -14501,6 +14959,8 @@
       }
 
       function syncUserConfigControls() {
+        renderTransmitChecksumControls();
+        refs.deviceConfigName.value = state.deviceName;
         if (refs.baudRate) refs.baudRate.value = state.settings.baudRate;
         if (refs.dataBits) refs.dataBits.value = String(state.settings.dataBits);
         if (refs.stopBits) refs.stopBits.value = String(state.settings.stopBits);
@@ -14540,8 +15000,9 @@
         stopAutoSendTimer();
         clearPresetExpectations();
         applyLocalPrefsSnapshot(snapshot);
-        syncUserConfigControls();
         invalidateDerivedCaches();
+        deriveData();
+        syncUserConfigControls();
         scheduleRefresh();
         if (reconfigureSerial) {
           scheduleSerialOpenOptionsApply('serial-options-apply', { immediate: true });
@@ -14642,13 +15103,15 @@
           receiveContentSchemaVersion: RECEIVE_CONTENT_SCHEMA_VERSION,
           savedAt: Date.now(),
           theme: state.theme,
+          deviceName: state.deviceName,
+          manualConnectRequired: state.serial.requireManualConnect,
           layout: {
             expanded: Boolean(state.layoutExpanded),
             sidebarCollapsed: Boolean(state.ui.sidebarCollapsed),
             parserResultsExpanded: Boolean(state.ui.parserResultsExpanded),
             sendExtensionHeight: Math.max(0, Math.round(Number(state.ui.sendExtensionHeightOverride) || 0))
           },
-          settings: { ...state.settings },
+          settings: { ...state.settings, ...(state.settings.txChecksum ? { txChecksum: { ...state.settings.txChecksum } } : {}) },
           parser: snapshotParserGraphState(),
           charts: (state.charts || []).map((chart) => snapshotChartConfig(chart)),
           modules: {
@@ -15570,6 +16033,26 @@
       }
 
       function attachEventListeners() {
+        ['save-device-config-btn', 'save-device-config-menu'].forEach(id => {
+          document.getElementById(id).addEventListener('click', saveDeviceConfig);
+        });
+        ['open-device-config-btn', 'open-device-config-menu'].forEach(id => {
+          document.getElementById(id).addEventListener('click', () => {
+            refs.deviceConfigFileInput.value = '';
+            refs.deviceConfigFileInput.click();
+          });
+        });
+        refs.deviceConfigName.addEventListener('input', () => {
+          state.deviceName = refs.deviceConfigName.value;
+          scheduleLocalPrefsSave();
+        });
+        refs.deviceConfigFileInput.addEventListener('change', async () => {
+          const file = refs.deviceConfigFileInput.files[0];
+          if (!file) return;
+          try { await openDeviceConfigText(await file.text()); }
+          catch (error) { toast('打开失败', error.message || '设备配置无效。', 'error'); }
+          finally { refs.deviceConfigFileInput.value = ''; }
+        });
         refs.themeOpts.forEach(function(opt) {
           opt.addEventListener('click', function() {
             handleThemeChange(opt.dataset.theme);
@@ -15948,7 +16431,10 @@
           if (!rowEl) return;
           const row = state.parser.binarySchema.find((entry) => entry.id === rowEl.dataset.binaryRowId);
           if (!row) return;
-          if (event.target.matches('[data-binary-value]')) {
+          if (event.target.matches('[data-binary-length]')) {
+            row.length = Number(event.target.value);
+            renderBinaryFrameLayout();
+          } else if (event.target.matches('[data-binary-value]')) {
             row.value = event.target.value;
           } else if (event.target.matches('[data-binary-name]')) {
             row.name = event.target.value;
@@ -15963,6 +16449,7 @@
           if (!row) return;
           if (event.target.matches('[data-binary-kind]')) {
             row.kind = event.target.value;
+            if (row.kind === 'gap') { row.value = ''; row.length = 1; }
             if (row.kind === 'checksum') {
               row.name = 'checksum';
               row.nameAuto = true;
@@ -16138,6 +16625,7 @@
         });
         refs.sendInput.addEventListener('input', () => {
           normalizeSendInputValue();
+          scheduleRefresh();
         });
 
         refs.toggleAutoSendBtn.addEventListener('click', () => {
@@ -16278,6 +16766,7 @@
           state.presetSend.items.push({ id: uid('queue'), enabled: true, payload: getDefaultSendContent('PING'), expected: getDefaultReceiveContent('PONG'), description: '' });
         }
         state.ui.windowFocused = document.visibilityState === 'visible' && document.hasFocus();
+        refs.deviceConfigName.value = state.deviceName;
         syncVersionDisplay();
         syncUserConfigMenuUi();
         applyTheme();
@@ -16316,6 +16805,9 @@
 
       initializeDefaults();
       attachEventListeners();
+      renderTransmitChecksumControls();
+      document.getElementById('tx-checksum-controls').addEventListener('change', updateChecksumControl);
+      refs.binarySchemaList.addEventListener('change', updateChecksumControl);
       tryInitialSerialConnectPrompt();
     })();
   </script>
