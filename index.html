@@ -3660,6 +3660,11 @@
       gap: 8px;
     }
 
+    .chart-view-controls { display:flex; flex-wrap:wrap; gap:6px; padding:6px 10px; font-size:11px; }
+    .chart-view-controls button { font:inherit; color:var(--text); background:var(--bg-panel); border:1px solid var(--border); border-radius:5px; cursor:pointer; }
+    .chart-view-controls span { flex-basis:100%; opacity:0.7; }
+    .chart-range-error { color:#d65b54; min-height:1em; }
+
     .chart-config-pair {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -12238,6 +12243,9 @@
       }
 
       function applyChartAutoPreset(chart) {
+        const panel = refs.chartList?.querySelector(`[data-chart-id="${chart.id}"]`);
+        panel?.querySelectorAll('[data-chart-range]').forEach(input => { delete input.dataset.edited; });
+        const error = panel?.querySelector('[data-chart-range-error]'); if (error) error.textContent = '';
         resetChartView(chart);
         syncChartViewUi(chart);
       }
@@ -13277,13 +13285,19 @@
             </div>
             <div class="chart-panel-resize-handle chart-panel-resize-handle-top" data-chart-panel-resize="top"></div>
             <div class="chart-toolbar">
-              <button class="chart-tool-btn chart-auto-btn ${chart.viewMode === 'auto' ? 'is-active' : ''}" type="button" data-chart-auto title="应用常用范围" aria-label="应用常用范围">AUTO</button>
+              <button class="chart-tool-btn chart-auto-btn ${chart.viewMode === 'auto' ? 'is-active' : ''}" type="button" data-chart-auto title="恢复自动量程与实时跟随" aria-label="恢复自动量程与实时跟随">AUTO</button>
               <button class="chart-tool-btn" type="button" data-chart-toggle title="图表设置" aria-label="图表设置">${settingsIcon}</button>
               <button class="chart-tool-btn" type="button" data-chart-remove title="关闭图表" aria-label="关闭图表">${closeIcon}</button>
             </div>
             <div class="chart-view-chip ${canOpenChartViewPicker(chart) ? 'is-selectable' : ''}" data-chart-view-chip>${getChartViewChipLabel(chart)}</div>
             <div class="chart-config chart-flyout ${chart.open ? 'open' : ''}">
               ${chart.type === 'bar' ? barConfig : timeConfig}
+              ${chart.type !== 'bar' ? `<div class="chart-config-section">
+                <div class="panel-subtitle">手动范围 · X：${chart.type === 'time' ? '相对冻结时刻的毫秒（ms）' : '频率（Hz）'}；Y：当前所选纵轴（全部通道时统一应用）</div>
+                ${['x', 'y'].map(axis => `<div class="chart-config-pair">${['min', 'max'].map(edge => `<div class="chart-config-field"><label>${axis.toUpperCase()} ${edge === 'min' ? '最小值' : '最大值'}</label><input type="number" step="any" data-chart-range="${axis}-${edge}" aria-label="${axis.toUpperCase()} ${edge}"></div>`).join('')}</div>`).join('')}
+                <button type="button" data-chart-range-apply>应用范围</button>
+                <div class="chart-range-error" role="status" data-chart-range-error></div>
+              </div>` : ''}
             </div>
             <div class="chart-canvas-wrap" style="height:${chartHeight}px">
               ${yAxisBindingOptions ? `<div class="chart-axis-binding-picker chart-flyout">${yAxisBindingOptions}</div>` : ''}
@@ -13291,6 +13305,12 @@
               ${chart.type !== 'bar' ? '<div class="chart-axis-overlay chart-axis-overlay-x" data-chart-axis-x-label>缩放横轴</div>' : ''}
               <canvas id="canvas-${chart.id}" width="1024" height="220"></canvas>
             </div>
+            ${chart.type !== 'bar' ? `<div class="chart-view-controls">
+              <button type="button" data-chart-zoom="x:2" title="只放大横轴">X＋</button><button type="button" data-chart-zoom="x:0.5" title="只缩小横轴">X－</button>
+              <button type="button" data-chart-zoom="y:2" title="只放大当前纵轴">Y＋</button><button type="button" data-chart-zoom="y:0.5" title="只缩小当前纵轴">Y－</button>
+              <button type="button" data-chart-auto>恢复自动${chart.type === 'time' ? '／实时跟随' : '量程'}</button>
+              <span data-chart-view-status></span>
+            </div>` : ''}
             <div class="chart-panel-resize-handle chart-panel-resize-handle-bottom" data-chart-panel-resize="bottom"></div>
           </article>
         `;
@@ -13483,6 +13503,65 @@
         if (yLabel) yLabel.textContent = '缩放纵轴';
         const xLabel = panel.querySelector('[data-chart-axis-x-label]');
         if (xLabel) xLabel.textContent = '缩放横轴';
+        const status = panel.querySelector('[data-chart-view-status]');
+        if (status) status.textContent = `${chart.viewMode === 'auto' ? (chart.type === 'time' ? '实时跟随 · 最近 10 秒' : '自动量程') : '手动视图'} · 拖动图内平移；轴区拖动／滚轮单轴缩放；设置中输入范围`;
+        const meta = chart.drawMeta;
+        if (meta && !panel.querySelector('[data-chart-range]:focus')) {
+          panel.querySelectorAll('[data-chart-range]').forEach(input => {
+            if (input.dataset.edited) return;
+            const [axis, edge] = input.dataset.chartRange.split('-');
+            input.value = String(Number(meta[`${axis}Range`][edge].toPrecision(12)));
+          });
+        }
+      }
+
+      function getCombinedChartYRange(chart, fallback) {
+        const ranges = chart.bindings.map(key => {
+          const view = chart.bindingViewY[key];
+          return view ? getViewRange(view.baseMin, view.baseMax, view.zoom, view.offset, null, null, 1e-6, Infinity) : fallback;
+        });
+        const min = Math.min(...ranges.map(range => range.min));
+        const max = Math.max(...ranges.map(range => range.max));
+        return ranges.length ? {min, max, range: Math.max(1e-9, max - min)} : fallback;
+      }
+
+      function changeChartAxisZoom(chart, axis, factor) {
+        if (!chart.drawMeta) return;
+        setChartManualView(chart);
+        if (axis === 'x') chart.viewZoomX = clamp(chart.viewZoomX * factor, CHART_ZOOM_MIN, CHART_ZOOM_MAX);
+        else if (chart.alignScale) chart.viewZoomY = Math.max(1e-6, chart.viewZoomY * factor);
+        else {
+          const key = ensureChartYAxisBinding(chart);
+          (key === '__all__' ? chart.bindings : [key]).forEach(binding => {
+            const view = chart.bindingViewY[binding];
+            if (view) view.zoom = Math.max(1e-6, view.zoom * factor);
+          });
+        }
+        drawChart(chart); syncChartViewUi(chart); scheduleLocalPrefsSave();
+      }
+
+      function applyChartRangeInputs(chart, panel) {
+        const values = ['x-min', 'x-max', 'y-min', 'y-max'].map(key => {
+          const input = panel.querySelector(`[data-chart-range="${key}"]`);
+          return input.value.trim() === '' ? NaN : Number(input.value);
+        });
+        const [xMin, xMax, yMin, yMax] = values;
+        const error = panel.querySelector('[data-chart-range-error]');
+        if (!values.every(Number.isFinite) || !Number.isFinite(xMax - xMin) || !Number.isFinite(yMax - yMin) || xMax - xMin < 1e-9 || yMax - yMin < 1e-9) {
+          error.textContent = '范围必须是有限数值，且最大值大于最小值（跨度至少 1e-9）。'; return;
+        }
+        setChartManualView(chart);
+        chart.viewBaseXMin = xMin; chart.viewBaseXMax = xMax; chart.viewZoomX = 1; chart.viewOffsetX = 0;
+        if (chart.alignScale) {
+          chart.viewBaseYMin = yMin; chart.viewBaseYMax = yMax; chart.viewZoomY = 1; chart.viewOffsetY = 0;
+        } else {
+          const key = ensureChartYAxisBinding(chart);
+          (key === '__all__' ? chart.bindings : [key]).forEach(binding => {
+            chart.bindingViewY[binding] = {baseMin: yMin, baseMax: yMax, zoom: 1, offset: 0};
+          });
+        }
+        panel.querySelectorAll('[data-chart-range]').forEach(input => { delete input.dataset.edited; });
+        error.textContent = ''; drawChart(chart); syncChartViewUi(chart); scheduleLocalPrefsSave();
       }
 
       function clampChartViewValue(value, min, max, fallback) {
@@ -13499,26 +13578,22 @@
             ensureChartYAxisBinding(chart);
             (chart.bindings || []).forEach((key) => {
               const autoRange = meta.perKeyAutoRange[key] || { min: meta.yClampMin, max: meta.yClampMax };
-              if (!chart.bindingViewY[key]) {
-                chart.bindingViewY[key] = { zoom: 1, offset: 0, baseMin: chart.type === 'fft' ? 0 : autoRange.min, baseMax: autoRange.max };
-                return;
-              }
-              if (!Number.isFinite(chart.bindingViewY[key].baseMin)) chart.bindingViewY[key].baseMin = chart.type === 'fft' ? 0 : autoRange.min;
-              if (!Number.isFinite(chart.bindingViewY[key].baseMax)) chart.bindingViewY[key].baseMax = autoRange.max;
-              if (!Number.isFinite(chart.bindingViewY[key].zoom)) chart.bindingViewY[key].zoom = 1;
-              if (!Number.isFinite(chart.bindingViewY[key].offset)) chart.bindingViewY[key].offset = 0;
+              chart.bindingViewY[key] = { zoom: 1, offset: 0, baseMin: autoRange.min, baseMax: autoRange.max };
             });
           } else {
             chart.viewBaseYMin = chart.type === 'fft' ? 0 : (Number.isFinite(meta.yRange?.min) ? meta.yRange.min : meta.yClampMin);
             chart.viewBaseYMax = Number.isFinite(meta.yRange?.max) ? meta.yRange.max : meta.yClampMax;
           }
         }
+        if (chart.type === 'time' && chart.viewFollowLatestX !== false) chart.viewTimeAnchor = chart.drawMeta?.timeOrigin ?? null;
+        chart.viewFollowLatestX = false;
         chart.viewMode = 'manual';
         syncChartViewUi(chart);
       }
 
       function resetChartView(chart) {
         chart.viewMode = 'auto';
+        chart.viewTimeAnchor = null;
         chart.viewZoomX = 1;
         chart.viewZoomY = 1;
         chart.viewOffsetX = 0;
@@ -13547,17 +13622,6 @@
           min: center - visibleRange * 0.5,
           max: center + visibleRange * 0.5,
           range: visibleRange
-        };
-      }
-
-      function getAnchoredPositiveRange(baseMax, zoom, zoomMin = CHART_ZOOM_MIN, zoomMax = CHART_ZOOM_MAX) {
-        const safeBaseMax = Math.max(1e-6, Number.isFinite(baseMax) ? baseMax : 1);
-        const safeZoom = clampChartViewValue(zoom, zoomMin, zoomMax, 1);
-        const visibleMax = Math.max(1e-6, safeBaseMax / safeZoom);
-        return {
-          min: 0,
-          max: visibleMax,
-          range: visibleMax
         };
       }
 
@@ -13698,7 +13762,8 @@
 
       function drawGrid(ctx, left, top, plotW, plotH, xRange, yRange, xTicks, yTicks) {
         ctx.save();
-        ctx.strokeStyle = state.theme === 'dark' ? 'rgba(143,168,184,0.15)' : 'rgba(25,48,72,0.08)';
+        ctx.strokeStyle = state.theme === 'dark' ? 'rgba(143,168,184,0.23)' : 'rgba(25,48,72,0.15)';
+        ctx.setLineDash([4, 4]);
         ctx.lineWidth = 1;
         yTicks.forEach((tick) => {
           const y = top + (1 - ((tick - yRange.min) / Math.max(1e-9, yRange.range))) * plotH;
@@ -13780,6 +13845,10 @@
           }
           if (lastT > maxTime) maxTime = lastT;
         });
+        if (chart.viewMode === 'manual' && chart.viewFollowLatestX === false) {
+          if (!Number.isFinite(chart.viewTimeAnchor)) chart.viewTimeAnchor = maxTime;
+          maxTime = chart.viewTimeAnchor;
+        }
         const autoRangeMs = 10000;
         const baseTimeMin = -autoRangeMs;
         const baseTimeMax = 0;
@@ -13856,7 +13925,9 @@
         const yAxisTitle = !chart.alignScale && yAxisBindingKey
           ? `${baseYTitle}（${yAxisBindingKey === '__all__' ? '全部通道' : getFieldDisplayLabel(yAxisBindingKey)}）`
           : baseYTitle;
-        const yRange = chart.viewMode === 'manual'
+        const yRange = chart.viewMode === 'manual' && controlsAllChannels
+          ? getCombinedChartYRange(chart, {min: manualBaseYMin, max: manualBaseYMax, range: manualBaseYMax - manualBaseYMin})
+          : chart.viewMode === 'manual'
           ? getViewRange(
               manualBaseYMin,
               manualBaseYMax,
@@ -13892,6 +13963,7 @@
           xTitle: '时间',
           yTitle: yAxisTitle,
           type: 'time',
+          timeOrigin: maxTime,
           anchorTime: 0,
           yBindingKey: yAxisBindingKey,
           controlsAllChannels,
@@ -13916,7 +13988,7 @@
           padding,
           xRange,
           yRange,
-          '时间',
+          '相对时间 (s)',
           yAxisTitle,
           xTicks,
           yTicks,
@@ -14253,16 +14325,16 @@
               chart.bindingViewY[key] = { zoom: 1, offset: 0, baseMin: 0, baseMax };
               return;
             }
-            chart.bindingViewY[key].baseMin = 0;
+            if (!Number.isFinite(chart.bindingViewY[key].baseMin)) chart.bindingViewY[key].baseMin = 0;
             if (!Number.isFinite(chart.bindingViewY[key].baseMax)) chart.bindingViewY[key].baseMax = baseMax;
             if (!Number.isFinite(chart.bindingViewY[key].zoom)) chart.bindingViewY[key].zoom = 1;
-            chart.bindingViewY[key].offset = 0;
+            if (!Number.isFinite(chart.bindingViewY[key].offset)) chart.bindingViewY[key].offset = 0;
           });
         }
         const selectedAutoRange = yAxisBindingKey && yAxisBindingKey !== '__all__'
           ? (spectrumEntries.find((entry) => entry.key === yAxisBindingKey) || { ampMax: globalAmpMax })
           : { ampMax: globalAmpMax };
-        const manualBaseYMin = 0;
+        const manualBaseYMin = chart.alignScale ? (chart.viewBaseYMin ?? 0) : (controlsAllChannels ? 0 : (chart.bindingViewY?.[yAxisBindingKey]?.baseMin ?? 0));
         const manualBaseYMax = chart.alignScale
           ? (Number.isFinite(chart.viewBaseYMax) ? chart.viewBaseYMax : globalAmpMax)
           : (controlsAllChannels
@@ -14271,10 +14343,13 @@
         const yAxisTitle = !chart.alignScale && yAxisBindingKey
           ? `幅值（${yAxisBindingKey === '__all__' ? '全部通道' : getFieldDisplayLabel(yAxisBindingKey)}）`
           : '幅值';
-        const yRange = chart.viewMode === 'manual'
-          ? getAnchoredPositiveRange(
-              manualBaseYMax,
+        const yRange = chart.viewMode === 'manual' && controlsAllChannels
+          ? getCombinedChartYRange(chart, {min: manualBaseYMin, max: manualBaseYMax, range: manualBaseYMax - manualBaseYMin})
+          : chart.viewMode === 'manual'
+          ? getViewRange(
+              manualBaseYMin, manualBaseYMax,
               chart.alignScale ? chart.viewZoomY : (controlsAllChannels ? chart.viewZoomY : (chart.bindingViewY?.[yAxisBindingKey]?.zoom || 1)),
+              chart.alignScale ? chart.viewOffsetY : (chart.bindingViewY?.[yAxisBindingKey]?.offset || 0), null, null,
               1e-6,
               Number.POSITIVE_INFINITY
             )
@@ -14300,7 +14375,7 @@
           yRange,
           xClampMin: chart.viewMode === 'manual' ? manualBaseXMin : freqMin,
           xClampMax: chart.viewMode === 'manual' ? manualBaseXMax : autoFreqMax,
-          yClampMin: 0,
+          yClampMin: manualBaseYMin,
           yClampMax: chart.viewMode === 'manual' ? manualBaseYMax : globalAmpMax,
           xTitle: '频率',
           yTitle: yAxisTitle,
@@ -14321,7 +14396,7 @@
           ctx.stroke();
           ctx.restore();
         }
-        drawAxes(ctx, width, height, padding, xRange, yRange, '频率', chart.drawMeta.yTitle, xTicks, yTicks);
+        drawAxes(ctx, width, height, padding, xRange, yRange, '频率 (Hz)', chart.drawMeta.yTitle, xTicks, yTicks);
         spectrumEntries.forEach(({ index, spectrumSlice, ampMax }) => {
           if (!spectrumSlice.length) return;
           const activeYRange = chart.viewMode === 'manual'
@@ -14331,9 +14406,9 @@
                     const bindingState = chart.bindingViewY?.[keys[index]] || {};
                     const autoRange = chart.drawMeta.perKeyAutoRange?.[keys[index]] || { min: 0, max: ampMax, range: Math.max(1e-9, ampMax) };
                     const baseMax = Number.isFinite(bindingState.baseMax) ? bindingState.baseMax : autoRange.max;
-                    return getAnchoredPositiveRange(
-                      baseMax,
-                      bindingState.zoom || 1,
+                    return getViewRange(
+                      bindingState.baseMin ?? 0, baseMax,
+                      bindingState.zoom || 1, bindingState.offset || 0, null, null,
                       1e-6,
                       Number.POSITIVE_INFINITY
                     );
@@ -14402,6 +14477,7 @@
         } else {
           drawFftChart(ctx, width, height, chart, seriesKeys);
         }
+        syncChartViewUi(chart);
       }
 
       function renderDirty() {
@@ -16033,7 +16109,6 @@
         const meta = drag.meta;
         const dx = nextClientX - drag.startClientX;
         const dy = nextClientY - drag.startClientY;
-        const isFft = chart.type === 'fft';
         if (drag.zone === 'resize-top' || drag.zone === 'resize-bottom') {
           const delta = drag.zone === 'resize-top' ? -dy : dy;
           chart.heightPx = Math.max(140, (drag.startHeight || chart.heightPx || 220) + delta);
@@ -16057,7 +16132,7 @@
           const xBaseRange = Math.max(1e-9, drag.baseXMax - drag.baseXMin);
           const nextXCenter = drag.startXCenter - xDataShift;
           chart.viewOffsetX = (nextXCenter - ((drag.baseXMin + drag.baseXMax) * 0.5)) / xBaseRange;
-          if (!isFft) {
+          {
             const yBaseRange = Math.max(1e-9, drag.baseYMax - drag.baseYMin);
             const nextYCenter = drag.startYCenter + yDataShift;
             if (controlsAllChannels) {
@@ -16083,14 +16158,11 @@
             (chart.bindings || []).forEach((key) => {
               const bindingState = chart.bindingViewY?.[key] || (chart.bindingViewY[key] = { zoom: 1, offset: 0, baseMin: drag.baseYMin, baseMax: drag.baseYMax });
               bindingState.zoom = Math.max(1e-6, (drag.startBindingViewY?.[key]?.zoom || 1) * Math.exp(-dy / 160));
-              if (isFft) bindingState.offset = 0;
             });
           } else if (yBindingState) {
             yBindingState.zoom = Math.max(1e-6, drag.startZoomY * Math.exp(-dy / 160));
-            if (isFft) yBindingState.offset = 0;
           } else {
             chart.viewZoomY = Math.max(1e-6, drag.startZoomY * Math.exp(-dy / 160));
-            if (isFft) chart.viewOffsetY = 0;
           }
         }
         syncChartViewUi(chart);
@@ -16108,8 +16180,12 @@
           state.ui.chartPickerOpenId = '';
           syncChartViewUi(chart);
         }
-        const selectedBindingAutoRange = !chart.alignScale && info.meta.yBindingKey && info.meta.yBindingKey !== '__all__'
-          ? (info.meta.perKeyAutoRange?.[info.meta.yBindingKey] || null)
+        if (!info.presetZone) setChartManualView(chart);
+        const selectedBindingView = !chart.alignScale && info.meta.yBindingKey && info.meta.yBindingKey !== '__all__'
+          ? chart.bindingViewY[info.meta.yBindingKey]
+          : null;
+        const selectedBindingAutoRange = selectedBindingView
+          ? {min: selectedBindingView.baseMin, max: selectedBindingView.baseMax}
           : null;
         state.ui.chartDrag = {
           chartId: chart.id,
@@ -16131,9 +16207,7 @@
           startHeight: Math.max(140, Number(chart.heightPx) || info.rect.height || 220),
           baseXMin: info.meta.xClampMin,
           baseXMax: info.meta.xClampMax,
-          baseYMin: chart.type === 'fft'
-            ? 0
-            : (selectedBindingAutoRange
+          baseYMin: (selectedBindingAutoRange
             ? selectedBindingAutoRange.min
             : (info.meta.controlsAllChannels
             ? (Number.isFinite(info.meta.yRange?.min) ? info.meta.yRange.min : info.meta.yClampMin)
@@ -16194,7 +16268,6 @@
         if (!info) return;
         event.preventDefault();
         const chart = info.chart;
-        const isFft = chart.type === 'fft';
         if (state.ui.chartPickerOpenId === chart.id) {
           state.ui.chartPickerOpenId = '';
           syncChartViewUi(chart);
@@ -16216,14 +16289,11 @@
             (chart.bindings || []).forEach((key) => {
               const bindingState = chart.bindingViewY?.[key] || (chart.bindingViewY[key] = { zoom: 1, offset: 0, baseMin: info.meta.yClampMin, baseMax: info.meta.yClampMax });
               bindingState.zoom = Math.max(1e-6, (bindingState.zoom || 1) * factor);
-              if (isFft) bindingState.offset = 0;
             });
           } else if (yBindingState) {
             yBindingState.zoom = Math.max(1e-6, (yBindingState.zoom || 1) * factor);
-            if (isFft) yBindingState.offset = 0;
           } else {
             chart.viewZoomY = Math.max(1e-6, chart.viewZoomY * factor);
-            if (isFft) chart.viewOffsetY = 0;
           }
         }
         syncChartViewUi(chart);
@@ -16243,6 +16313,12 @@
           syncChartViewUi(chart);
           drawChart(chart);
           return;
+        }
+        const zoomButton = event.target.closest('[data-chart-zoom]');
+        if (zoomButton) { const [axis, factor] = zoomButton.dataset.chartZoom.split(':'); changeChartAxisZoom(chart, axis, Number(factor)); return; }
+        if (event.target.closest('[data-chart-range-apply]')) {
+          const panel = event.target.closest('[data-chart-id]');
+          applyChartRangeInputs(chart, panel); return;
         }
         if (event.target.closest('[data-chart-view-chip]')) {
           if (canOpenChartViewPicker(chart)) {
@@ -16318,6 +16394,7 @@
         ) {
           return;
         }
+        if (event.target.hasAttribute('data-chart-range')) { event.target.dataset.edited = 'true'; return; }
         let needsRebuild = false;
         if (event.target.hasAttribute('data-chart-title')) chart.name = event.target.value;
         if (event.target.hasAttribute('data-chart-binding')) {
