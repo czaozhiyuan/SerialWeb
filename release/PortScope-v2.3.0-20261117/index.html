@@ -19,6 +19,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>澄波 PortScope · 串口数据工作台</title>
   <!-- Modified 2026-11-16: PortScope 2.2.0 derivative; UI branding, visual design, and external promotional links changed. Original attribution and AGPL-3.0 license retained. -->
+  <!-- Modified 2026-11-17: PortScope 2.3.0 adds device JSON profiles, protocol checksums, fixed-offset fields, numeric and command panels, equal-column layouts, and waveform controls. -->
   <script>
     (() => {
       const LOCAL_PREFS_KEY = 'serialweb:prefs';
@@ -3430,6 +3431,10 @@
     }
 
     .chart-list {
+      grid-template-columns: repeat(var(--component-columns, 1), minmax(0, 1fr));
+      align-items: start;
+      align-content: start;
+      min-width: 0;
       min-height: 0;
       overflow: auto;
       display: grid;
@@ -3444,6 +3449,10 @@
       min-height: auto;
       padding-right: 0;
     }
+
+    .chart-list > * { min-width: 0; }
+    .chart-list > .panel-subtitle { grid-column: 1 / -1; }
+    .component-columns-control { display: flex; align-items: center; gap: 8px; font-size: 12px; white-space: nowrap; }
 
     .chart-panel {
       position: relative;
@@ -3652,6 +3661,11 @@
       gap: 8px;
     }
 
+    .chart-view-controls { display:flex; flex-wrap:wrap; gap:6px; padding:6px 10px; font-size:11px; }
+    .chart-view-controls button { font:inherit; color:var(--text); background:var(--bg-panel); border:1px solid var(--border); border-radius:5px; cursor:pointer; }
+    .chart-view-controls span { flex-basis:100%; opacity:0.7; }
+    .chart-range-error { color:#d65b54; min-height:1em; }
+
     .chart-config-pair {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -3688,6 +3702,7 @@
     }
 
     .chart-canvas-wrap {
+      min-width: 0;
       position: relative;
       min-height: 140px;
       overflow: hidden;
@@ -5633,6 +5648,44 @@
       .status-pill-title small { font-size: 8px; }
       .logo-mode-switch { margin-left: 2px; padding-left: 4px; }
     }
+    /* Device profile controls share the existing parser layout. */
+    .device-config-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 0; }
+    .device-config-bar label { font-size: 12px; color: var(--text-soft); }
+    .device-config-bar input { min-width: 80px; width: 120px; flex: 1 1 100px; }
+    .binary-name-cell { display: flex; align-items: center; gap: 4px; min-width: 0; }
+    .binary-name-cell input { width: 100%; min-width: 0; }
+    .binary-offset { flex: 0 0 auto; font: 10px var(--font-mono); }
+    #binary-frame-layout { white-space: normal; }
+    .protocol-checksum-controls { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 0; }
+    .protocol-checksum-controls label { display: flex; align-items: center; gap: 4px; font-size: 12px; white-space: nowrap; }
+    .protocol-checksum-controls input[type="number"] { width: 76px; }
+    .binary-schema-row > .protocol-checksum-controls { grid-column: 1 / -1; }
+    #tx-checksum-preview { display: block; white-space: normal; overflow-wrap: anywhere; max-height: 70px; overflow: auto; }
+    .binary-field-row { display: grid; grid-template-columns: minmax(120px, 2fr) minmax(75px, 1fr) minmax(100px, 1fr) minmax(100px, 1fr) auto; gap: 8px; margin: 8px 0; }
+    .binary-field-row label { display: grid; gap: 4px; min-width: 0; font-size: 12px; }
+    .binary-field-row input { width: 100%; min-width: 0; }
+    .numeric-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+    .numeric-header > strong { overflow-wrap: anywhere; min-width: 0; }
+    .numeric-panel .chart-toolbar { position: static; opacity: 1; pointer-events: auto; transform: none; flex-wrap: wrap; }
+    .numeric-panel .chart-config { position: static; display: none; width: auto; max-width: none; transform: none; box-shadow: none; }
+    .numeric-panel .chart-config.open { display: grid; }
+    .numeric-field-options { display: grid; gap: 8px; max-height: 200px; overflow: auto; }
+    .numeric-field-options label { display: flex; justify-content: space-between; gap: 8px; overflow-wrap: anywhere; }
+    .numeric-values { display: grid; gap: 12px; }
+    .numeric-value { display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+    .numeric-value > span { color: var(--muted); font-size: 12px; }
+    .numeric-value > strong { font: 700 28px var(--font-mono); }
+    .command-card { display: grid; gap: 10px; border-top: 1px solid var(--border); padding-top: 12px; min-width: 0; }
+    .command-editor { display: none; }
+    .command-panel.is-open .command-editor { display: block; }
+    .command-editor label, .command-inputs label { display: grid; gap: 4px; font-size: 12px; margin-bottom: 8px; min-width: 0; }
+    .command-editor input:not([type="checkbox"]), .command-editor textarea, .command-inputs input { width: 100%; min-width: 0; }
+    .command-editor textarea { min-height: 60px; resize: vertical; }
+    .command-parameter-editor { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; border-top: 1px dashed var(--border); padding-top: 8px; }
+    .command-inputs { display: grid; gap: 6px; }
+    .command-preview { font: 12px var(--font-mono); white-space: normal; overflow-wrap: anywhere; max-height: 100px; overflow: auto; }
+    .command-preview[data-status="error"] { color: var(--danger); }
+    #binary-fields-status[data-status="error"], #tx-checksum-preview[data-status="error"], #rx-checksum-result[data-status="error"] { color: var(--danger, #e06363); }
   </style>
 </head>
 <body spellcheck="false">
@@ -5715,7 +5768,7 @@
             <button id="system-menu-btn" class="icon-btn" title="工作台设置" aria-label="工作台设置">&#9776;</button>
             <div id="system-menu" class="floating-menu">
               <button id="version-info-btn" class="menu-static-line version-info-btn" type="button">
-                <span id="runtime-mode-label" class="runtime-mode-label">关于澄波 v2.2.0</span>
+                <span id="runtime-mode-label" class="runtime-mode-label">关于澄波 v2.3.0</span>
                 <span id="online-mode-chip" class="online-mode-chip">串口工作台</span>
               </button>
               <div class="menu-theme-line">
@@ -5736,6 +5789,10 @@
                 <span class="menu-config-warning">此操作会丢失当前设置</span>
                 <button id="confirm-user-config-btn" class="danger-btn" type="button">确认</button>
                 <button id="cancel-user-config-btn" type="button">取消</button>
+              </div>
+              <div class="menu-config-line">
+                <button id="save-device-config-menu" type="button">保存设备 JSON</button>
+                <button id="open-device-config-menu" type="button">打开设备 JSON</button>
               </div>
               <a id="download-local-link" href="index.html" download="PortScope串口工作台.html">保存工作台 HTML / 源码</a>
             </div>
@@ -5947,6 +6004,12 @@
             </div>
           </div>
 
+          <div class="device-config-bar">
+            <label for="device-config-name">设备配置</label>
+            <input id="device-config-name" class="compact-input" value="设备配置" aria-label="设备配置名称" maxlength="100">
+            <button id="save-device-config-btn" class="secondary-btn" type="button">保存 JSON</button>
+            <button id="open-device-config-btn" class="secondary-btn" type="button">打开 JSON</button>
+          </div>
           <section id="text-parser-pane" class="parser-config-card">
             <div class="parser-card-head">
               <div class="panel-title">文本解析配置
@@ -5969,7 +6032,7 @@
             <div class="parser-card-head">
               <div>
                 <div class="panel-title">十六进制结构表
-                  <span class="help-icon" data-tip="行类型（按表格下拉顺序）：&#10;• 帧头 — 帧起始标识，16进制&#10;  留空则跳过&#10;• 帧尾 — 帧结束标识，16进制&#10;  留空则不检查帧尾&#10;• 数据 — 数值数据，需选择&#10;  数据类型 + 填写标签名&#10;• 校验和 — 自动计算 SUM8&#10;  仅覆盖 data 行的字节&#10;• 间隔符 — 留空占位 1 字节&#10;  填入则匹配指定16进制&#10;&#10;数值大小端说明：&#10;LE = Little Endian（低位在前）&#10;BE = Big Endian（高位在前）&#10;&#10;可用数据类型：&#10;UInt8 / Int8&#10;UInt16 LE/BE / Int16 LE/BE&#10;UInt32 LE/BE / Int32 LE/BE&#10;Float32 LE/BE / Bool(8bit)">?</span>
+                  <span class="help-icon" data-tip="行类型（按表格下拉顺序）：&#10;• 帧头 — 帧起始标识，16进制&#10;  留空则跳过&#10;• 帧尾 — 帧结束标识，16进制&#10;  留空则不检查帧尾&#10;• 数据 — 数值数据，需选择&#10;  数据类型 + 填写标签名&#10;• 校验和 — 自动计算 SUM8&#10;  仅覆盖 data 行的字节&#10;• 间隔区域 — 跳过指定 n 字节&#10;  旧固定 HEX 匹配规则保留&#10;偏移从 0 起算，整帧长度由结构表计算&#10;&#10;数值大小端说明：&#10;LE = Little Endian（低位在前）&#10;BE = Big Endian（高位在前）&#10;&#10;可用数据类型：&#10;UInt8 / Int8&#10;UInt16 LE/BE / Int16 LE/BE&#10;UInt32 LE/BE / Int32 LE/BE&#10;Float32 LE/BE / Bool(8bit)">?</span>
                 </div>
               </div>
               <button id="add-binary-row-btn" class="secondary-btn">新增一行</button>
@@ -5982,6 +6045,11 @@
                 <span></span>
               </div>
               <div id="binary-schema-list" class="binary-schema-list"></div>
+              <div id="binary-frame-layout" class="panel-subtitle" role="status"></div>
+              <div id="rx-checksum-result" class="panel-subtitle" role="status"></div>
+              <div class="parser-card-head"><div class="panel-title">固定偏移字段</div><button id="add-binary-field-btn" class="secondary-btn" type="button">新增字段</button></div>
+              <div id="binary-fields-list"></div>
+              <div id="binary-fields-status" class="panel-subtitle" role="status"></div>
             </div>
           </section>
 
@@ -5999,11 +6067,18 @@
           <div class="chart-add-strip">
             <div class="chart-add-copy">
               <div class="panel-title">添加图框</div>
+              <label class="component-columns-control">组件列数
+                <select id="component-columns" class="compact-select" aria-label="全局组件列数" title="全局等宽排列；任何窗口宽度都保持所选列数">
+                  <option value="1">1 列</option><option value="2">2 列</option><option value="3">3 列</option>
+                </select>
+              </label>
             </div>
             <div class="button-row">
               <button id="add-time-chart-btn" class="secondary-btn">时域图</button>
               <button id="add-fft-chart-btn" class="secondary-btn">频域图</button>
               <button id="add-bar-chart-btn" class="secondary-btn">柱状图</button>
+              <button id="add-numeric-panel-btn" class="secondary-btn" type="button">数值框</button>
+              <button id="add-command-panel-btn" class="secondary-btn" type="button">指令框</button>
               <button id="clear-charts-btn" class="secondary-btn danger-btn" type="button">清空缓存</button>
             </div>
           </div>
@@ -6105,6 +6180,11 @@
                   <textarea id="send-input" placeholder="输入发送内容；HEX 模式示例：AA 55 01 02"></textarea>
                   <button id="send-now-btn" class="wide-send-btn">立即发送</button>
                 </div>
+                <details id="tx-checksum-panel"><summary>发送校验（所有发送入口共用）</summary>
+                  <div id="tx-checksum-controls" class="protocol-checksum-controls"></div>
+                  <div class="panel-subtitle">偏移从 0 起算，包含帧头和追加换行；内容中请预留 1/2 个校验字节，计算后覆盖。关闭时原样发送。</div>
+                </details>
+                <output id="tx-checksum-preview" class="panel-subtitle" aria-live="polite"></output>
               </div>
 
               <div class="send-modebar">
@@ -6128,12 +6208,13 @@
     </main>
   </div>
 
+  <input id="device-config-file-input" type="file" class="hidden" accept=".json,application/json">
   <input id="timeline-file-input" type="file" class="hidden" accept=".csv,.txt,.bin,.timeline">
   <div id="version-modal-backdrop" class="version-modal-backdrop" aria-hidden="true">
     <section class="version-modal" role="dialog" aria-modal="true" aria-labelledby="version-modal-title">
       <div class="version-modal-head">
         <div>
-          <div id="version-modal-title" class="version-modal-title">澄波 PortScope v2.2.0</div>
+          <div id="version-modal-title" class="version-modal-title">澄波 PortScope v2.3.0</div>
           <div class="version-modal-subtitle">连接设备 · 观察数据 · 解析信号</div>
         </div>
         <button id="version-modal-close" class="version-modal-close" type="button" aria-label="关闭版本信息">
@@ -6158,13 +6239,20 @@
           </div>
         </section>
         <div class="version-info-grid">
-          <div class="version-info-cell"><strong>当前版本</strong><span id="version-current-label">v2.2.0</span></div>
+          <div class="version-info-cell"><strong>当前版本</strong><span id="version-current-label">v2.3.0</span></div>
           <div class="version-info-cell"><strong>工作流程</strong><span>连接 → 监视 → 解析 → 导出</span></div>
           <div class="version-info-cell"><strong>数据处理</strong><span>串口数据在浏览器本地处理</span></div>
           <div class="version-info-cell"><strong>开源许可</strong><span>AGPL-3.0 · 随附 LICENSE</span></div>
         </div>
         <div class="version-changelog">
           <div class="version-changelog-title">二次开发记录</div>
+          <div class="version-release"><strong>PortScope 2.3.0 · 2026-11-17</strong><ul>
+            <li>统一设备 JSON 保存／打开，支持固定帧结构、n 字节间隔和命名偏移字段。</li>
+            <li>新增数值框、参数化指令框和用户选择的 1／2／3 列等宽布局。</li>
+            <li>收发共享 SUM8、XOR8、LRC8、CRC-16/MODBUS；指令组帧后预览并发送。</li>
+            <li>新增虚线网格、独立横纵轴缩放、手动范围与实时跟随恢复。</li>
+            <li>ESP32-P4 原生 Web Serial 实机 113 项检查通过，原固件已恢复。</li>
+          </ul></div>
           <div class="version-release"><strong>PortScope 2.2.0 · 2026-11-16</strong><ul>
             <li>启用「澄波 PortScope」名称、波形标识与青绿 / 石墨工作台界面。</li>
             <li>移除原推广、外部站点和反馈入口，取消页面访问统计。</li>
@@ -6179,7 +6267,7 @@
 
   <script>
     (() => {
-      const VERSION = '2.2.0';
+      const VERSION = '2.3.0';
       const VERSION_MODAL_SEEN_KEY = 'serialweb:version-modal-seen';
       const MAX_DERIVED_LOG_LINES = 320;
       const SERIAL_BUFFER_SIZE = 65536;
@@ -6194,6 +6282,8 @@
       const MAX_CHART_POINTS = 180000;
       const MAX_CHART_RENDER_POINTS = 6000;
       const MAX_LIVE_EVENT_TOTAL_CHARS = 8192;
+      // 100 ms is about 96 byte times at 9600 baud with 8N1 framing.
+      const RX_IDLE_TIMEOUT_MS = 100;
       const MAX_RX_OPEN_EVENT_BYTES = 2048;
       const MAX_RX_OPEN_EVENT_TEXT_CHARS = 2048;
       const LOCAL_PREFS_KEY = 'serialweb:prefs';
@@ -6239,6 +6329,9 @@
         systemMenu: document.getElementById('system-menu'),
         configMenuRow: document.getElementById('config-menu-row'),
         configMenuConfirmRow: document.getElementById('config-menu-confirm-row'),
+        deviceConfigName: document.getElementById('device-config-name'),
+        deviceConfigFileInput: document.getElementById('device-config-file-input'),
+        binaryFrameLayout: document.getElementById('binary-frame-layout'),
         copyUserConfigBtn: document.getElementById('copy-user-config-btn'),
         pasteUserConfigBtn: document.getElementById('paste-user-config-btn'),
         resetUserConfigBtn: document.getElementById('reset-user-config-btn'),
@@ -6315,6 +6408,7 @@
         addBarChartBtn: document.getElementById('add-bar-chart-btn'),
         clearChartsBtn: document.getElementById('clear-charts-btn'),
         chartList: document.getElementById('chart-list'),
+        componentColumns: document.getElementById('component-columns'),
         monitorMetaMode: document.getElementById('monitor-meta-mode'),
         monitorMetaTx: document.getElementById('monitor-meta-tx'),
         monitorMetaRx: document.getElementById('monitor-meta-rx'),
@@ -6360,12 +6454,15 @@
         : 'system';
       const state = {
         version: VERSION,
+        deviceName: '设备配置',
         theme: initialSavedTheme,
         layoutExpanded: false,
         parserMode: 'text',
         serial: {
           supported: isWebSerialApiAvailable(),
           connected: false,
+          requireManualConnect: false,
+          connectTask: null,
           port: null,
           portHint: null,
           portInfoHint: null,
@@ -6401,6 +6498,8 @@
           blurReleaseActive: false,
           connectionEpoch: 0,
           rxActiveEvent: null,
+          rxIdleTimerId: null,
+          rxLastActivityAt: null,
           pendingCR: false,
           pendingRxBytes: null,
           deviceInfo: {
@@ -6459,7 +6558,8 @@
         },
         parser: {
           textRule: '',
-          binarySchema: []
+          binarySchema: [],
+          binaryFields: []
         },
         derived: {
           availableFields: [],
@@ -6489,6 +6589,7 @@
           chartFrameIntervalMs: 0,
           successfulFrames: [],
           fieldTypes: new Map(),
+          checksumResult: null,
           latestCards: [],
           binaryRemainders: { rx: [], tx: [] }
         },
@@ -6547,6 +6648,7 @@
         timelineExportOpenId: null,
         chartPickerOpenId: '',
         pendingConfigAction: '',
+        deviceConfigImporting: false,
         versionModalMarkOnClose: false,
           terminalAtBottom: true,
           windowFocused: document.hasFocus(),
@@ -6560,6 +6662,8 @@
           parserResultsExpanded: false,
           parserResultsCanExpand: false,
           chartDrag: null,
+          commandRuntime: {},
+          componentColumns: 1,
           sendExtensionHeightOverride: 0,
           sendExtensionResize: null,
           modePulse: {
@@ -6634,7 +6738,7 @@
         state.session.liveEvents = [];
         state.session.txBytes = 0;
         state.session.rxBytes = 0;
-        state.serial.rxActiveEvent = null;
+        resetRxSegmentationState();
         invalidateDerivedCaches();
         if (state.activeTimelineId === 'realtime') scheduleRefresh();
         requestAnimationFrame(forceTerminalToLatest);
@@ -7143,8 +7247,110 @@
         return `${action} | 串口可能被占用`;
       }
 
+      function normalizeProtocolChecksum(config = {}) {
+        return { enabled: config.enabled ?? false, algorithm: config.algorithm ?? 'sum8',
+          start: config.start ?? 0, length: config.length ?? 1, offset: config.offset ?? 1,
+          byteOrder: config.byteOrder ?? 'le', ...(config.legacy ? { legacy: true } : {}) };
+      }
+
+      function checksumWidth(config) {
+        return config.algorithm === 'crc16-modbus' ? 2 : 1;
+      }
+
+      function validateProtocolChecksum(config, frameLength = null, offset = config.offset, allowLegacy = false) {
+        if (typeof config.enabled !== 'boolean' || !['sum8', 'xor8', 'lrc8', 'crc16-modbus'].includes(config.algorithm)
+          || !['le', 'be'].includes(config.byteOrder)) throw new Error('校验算法或字节顺序无效');
+        if (config.legacy !== undefined && (config.legacy !== true || !allowLegacy || config.algorithm !== 'sum8')) throw new Error('旧校验仅支持 SUM8');
+        if (config.legacy) return;
+        if (![config.start, config.length, offset].every(Number.isSafeInteger)
+          || config.start < 0 || config.length < 1 || offset < 0
+          || config.start + config.length > SERIAL_BUFFER_SIZE || offset + checksumWidth(config) > SERIAL_BUFFER_SIZE) {
+          throw new Error('校验起始偏移、长度和字段位置必须为有效整数');
+        }
+        if (!config.enabled) return;
+        if (config.start < offset + checksumWidth(config) && offset < config.start + config.length) throw new Error('计算范围不能包含校验字段');
+        if (frameLength !== null && (config.start + config.length > frameLength || offset + checksumWidth(config) > frameLength)) throw new Error('校验范围或字段超出最终帧长度');
+      }
+
+      function computeProtocolChecksum(bytes, algorithm) {
+        let value = algorithm === 'crc16-modbus' ? 0xFFFF : 0;
+        for (const byte of bytes) {
+          if (algorithm === 'crc16-modbus') {
+            value ^= byte;
+            for (let bit = 0; bit < 8; bit++) value = (value >>> 1) ^ ((value & 1) ? 0xA001 : 0);
+          } else if (algorithm === 'xor8') value ^= byte;
+          else value = (value + byte) & 0xFF;
+        }
+        return algorithm === 'lrc8' ? (-value) & 0xFF : value;
+      }
+
+      function encodeProtocolChecksum(value, config) {
+        if (checksumWidth(config) === 1) return Uint8Array.of(value & 0xFF);
+        return Uint8Array.from(config.byteOrder === 'be' ? [value >>> 8, value & 0xFF] : [value & 0xFF, value >>> 8]);
+      }
+
+      function getReceiveChecksum(row) {
+        return row.checksum || { enabled: true, algorithm: 'sum8', legacy: true, start: 0, length: 1, byteOrder: 'le' };
+      }
+
+      function checksumControls(config, receive = false) {
+        const label = receive ? '接收' : '发送';
+        const select = (value, title) => `<option value="${value}" ${config.algorithm === value && !config.legacy ? 'selected' : ''}>${title}</option>`;
+        return `<label><input type="checkbox" data-checksum-key="enabled" ${config.enabled ? 'checked' : ''}>${label}校验</label>
+          <label>算法 <select class="compact-select" data-checksum-key="algorithm" aria-label="${label}校验算法">
+          ${receive ? `<option value="legacy" ${config.legacy ? 'selected' : ''}>SUM8（旧数据行范围）</option>` : ''}
+          ${select('sum8', 'SUM8')}${select('xor8', 'XOR8')}${select('lrc8', 'LRC8')}${select('crc16-modbus', 'CRC-16/MODBUS')}</select></label>
+          <label>起始偏移 <input class="compact-input" type="number" min="0" step="1" data-checksum-key="start" value="${config.start}" ${config.legacy ? 'disabled' : ''}></label>
+          <label>计算长度 <input class="compact-input" type="number" min="1" step="1" data-checksum-key="length" value="${config.length}" ${config.legacy ? 'disabled' : ''}></label>
+          ${receive ? '' : `<label>校验位置 <input class="compact-input" type="number" min="0" step="1" data-checksum-key="offset" value="${config.offset}"></label>`}
+          <label>CRC 字节序 <select class="compact-select" data-checksum-key="byteOrder" aria-label="${label}CRC字节序"><option value="le" ${config.byteOrder === 'le' ? 'selected' : ''}>低字节先</option><option value="be" ${config.byteOrder === 'be' ? 'selected' : ''}>高字节先</option></select></label>`;
+      }
+
+      function renderTransmitChecksumControls() {
+        document.getElementById('tx-checksum-controls').innerHTML = checksumControls(normalizeProtocolChecksum(state.settings.txChecksum));
+        renderTransmitChecksumPreview();
+      }
+
+      function renderTransmitChecksumPreview() {
+        const output = document.getElementById('tx-checksum-preview');
+        if (!output) return;
+        try {
+          const { payload, sendOptions } = getSendPayloadArgs(refs.sendInput.value, refs.sendInput.dataset.rawHex || '');
+          const frame = buildPayloadFrame(payload, sendOptions);
+          output.textContent = `最终 HEX：${bytesToHex(frame.bytes) || '（空）'}`;
+          output.dataset.status = 'ok';
+        } catch (error) {
+          output.textContent = `无法发送：${error.message}`;
+          output.dataset.status = 'error';
+        }
+      }
+
+      function updateChecksumControl(event) {
+        const key = event.target.dataset.checksumKey;
+        if (!key) return;
+        const rowElement = event.target.closest('[data-binary-row-id]');
+        const row = rowElement && state.parser.binarySchema.find(entry => entry.id === rowElement.dataset.binaryRowId);
+        const config = { ...(row ? getReceiveChecksum(row) : normalizeProtocolChecksum(state.settings.txChecksum)) };
+        if (key === 'enabled') config.enabled = event.target.checked;
+        else if (key === 'algorithm') {
+          config.algorithm = event.target.value === 'legacy' ? 'sum8' : event.target.value;
+          delete config.legacy;
+          if (event.target.value === 'legacy') config.legacy = true;
+        } else config[key] = ['start', 'length', 'offset'].includes(key) ? Number(event.target.value) : event.target.value;
+        if (row) {
+          row.checksum = config;
+          renderBinaryFrameLayout();
+          scheduleBinarySchemaReparse(key === 'algorithm');
+        } else {
+          state.settings.txChecksum = config;
+          scheduleRefresh();
+          scheduleLocalPrefsSave();
+        }
+      }
+
       function normalizeSendOptions(sendOptions = state.settings) {
         return {
+          txChecksum: normalizeProtocolChecksum(sendOptions.txChecksum ?? state.settings.txChecksum),
           sendMode: sendOptions.sendMode === 'hex' ? 'hex' : 'ascii',
           textEncoding: sendOptions.textEncoding || state.settings.textEncoding,
           appendNewline: typeof sendOptions.appendNewline === 'boolean' ? sendOptions.appendNewline : Boolean(state.settings.appendNewline),
@@ -7605,6 +7811,12 @@
         if (options.appendNewline) {
           bytes = appendLineEnding(bytes, options.newlineMode);
         }
+        validateProtocolChecksum(options.txChecksum, bytes.length);
+        if (options.txChecksum.enabled) {
+          const config = options.txChecksum;
+          bytes.set(encodeProtocolChecksum(computeProtocolChecksum(bytes.slice(config.start, config.start + config.length), config.algorithm), config), config.offset);
+          displayText = bytesToHex(bytes);
+        }
         return { bytes, displayText, options };
       }
 
@@ -7617,6 +7829,7 @@
           : Array.isArray(snapshot.binarySchema)
             ? snapshot.binarySchema.map((row) => normalizeBinarySchemaRowFromConfig(row))
             : [];
+        state.parser.binaryFields = (snapshot.binary?.fields || []).map(field => ({ id: uid('schema'), ...field }));
         ensureBinarySchemaRow();
         state.charts = Array.isArray(snapshot.charts)
           ? snapshot.charts.map((chart) => hydrateChartFromConfig(chart))
@@ -7624,6 +7837,7 @@
             ? snapshot.items.map((chart) => hydrateChartFromConfig(chart))
             : [];
         state.ui.chartPickerOpenId = '';
+        state.ui.commandRuntime = {};
         invalidateDerivedCaches();
         syncParserInputs();
       }
@@ -8156,7 +8370,7 @@
 
       function closeMenus(event) {
         const target = event?.target instanceof Element ? event.target : null;
-        if (!target || (!target.closest('.chart-config') && !target.closest('.chart-axis-binding-picker') && !target.closest('.chart-toolbar') && !target.closest('.chart-order-tools') && !target.closest('[data-chart-view-chip]'))) {
+        if (!target || (!target.closest('.command-panel') && !target.closest('.chart-config') && !target.closest('.chart-axis-binding-picker') && !target.closest('.chart-toolbar') && !target.closest('.chart-order-tools') && !target.closest('[data-chart-view-chip]'))) {
           let closedChartConfig = false;
           state.charts.forEach((chart) => {
             if (!chart.open) return;
@@ -8221,7 +8435,28 @@
         updateSerialStatus();
       }
 
+      function clearRxIdleTimer() {
+        if (state.serial.rxIdleTimerId !== null) {
+          clearTimeout(state.serial.rxIdleTimerId);
+          state.serial.rxIdleTimerId = null;
+        }
+      }
+
+      function scheduleRxIdleSplit() {
+        clearRxIdleTimer();
+        // Keep an incomplete multibyte character with its continuation bytes.
+        if (!state.serial.rxActiveEvent || state.serial.pendingRxBytes?.length) return;
+        state.serial.rxIdleTimerId = window.setTimeout(() => {
+          state.serial.rxIdleTimerId = null;
+          finalizeRxActiveEvent(state.serial.rxLastActivityAt, { syntheticSplit: true });
+          state.ui.activeViewCache.signature = '';
+          scheduleRefresh();
+        }, RX_IDLE_TIMEOUT_MS);
+      }
+
       function resetRxSegmentationState() {
+        clearRxIdleTimer();
+        state.serial.rxLastActivityAt = null;
         state.serial.rxActiveEvent = null;
         state.serial.pendingCR = false;
         state.serial.pendingRxBytes = null;
@@ -8403,6 +8638,14 @@
 
       function queueRxBytes(bytes, timestamp = nowPreciseMs(), metadata = {}) {
         if (!bytes?.length) return;
+        const arrivalTimestamp = normalizeTimestampMs(timestamp);
+        // Also enforce the boundary when a background tab delays the timer.
+        if (state.serial.rxActiveEvent && !state.serial.pendingRxBytes?.length
+          && state.serial.rxLastActivityAt !== null
+          && arrivalTimestamp - state.serial.rxLastActivityAt >= RX_IDLE_TIMEOUT_MS) {
+          finalizeRxActiveEvent(state.serial.rxLastActivityAt, { syntheticSplit: true });
+        }
+        state.serial.rxLastActivityAt = arrivalTimestamp;
         const rawChunk = recordRawChunk('rx', bytes, timestamp, metadata);
         const received = bytes instanceof Uint8Array ? bytes : Uint8Array.from(bytes || []);
         const receivedLength = received.length;
@@ -8463,6 +8706,7 @@
         }
         trimLiveEvents();
         state.session.rxBytes += receivedLength;
+        scheduleRxIdleSplit();
         scheduleRefresh({
           stats: true,
           timelineBar: true,
@@ -8550,6 +8794,7 @@
       }
 
       function finalizeRxActiveEvent(timestamp = nowPreciseMs(), options = {}) {
+        clearRxIdleTimer();
         const processRules = options.processRules !== false;
         const syntheticSplit = options.syntheticSplit === true;
         const event = state.serial.rxActiveEvent;
@@ -8618,6 +8863,10 @@
               }
             }));
             return;
+          }
+          if (activeRxEvent && !pendingRxBytes?.length
+            && timestamp - lastRxTimestamp >= RX_IDLE_TIMEOUT_MS) {
+            closeActiveRxEvent(lastRxTimestamp, true);
           }
           lastRxTimestamp = timestamp;
           lastRxChunkId = chunk.id || '';
@@ -9128,6 +9377,7 @@
       }
 
       function shouldScheduleReconnect(reason = 'auto') {
+        if (state.ui.deviceConfigImporting || state.serial.requireManualConnect) return false;
         if (!state.serial.portHint) return false;
         if (reason === 'blur-release') {
           return Boolean(state.settings.releaseSignalsOnBlur)
@@ -9370,7 +9620,16 @@
         return connected;
       }
 
-      async function connectSerial(source = 'manual', preferredPort = null, reconnectSession = 0) {
+      function connectSerial(source = 'manual', preferredPort = null, reconnectSession = 0) {
+        if (state.serial.connectTask) return state.serial.connectTask;
+        const task = performConnectSerial(source, preferredPort, reconnectSession);
+        state.serial.connectTask = task;
+        return task.finally(() => { if (state.serial.connectTask === task) state.serial.connectTask = null; });
+      }
+
+      async function performConnectSerial(source = 'manual', preferredPort = null, reconnectSession = 0) {
+        if (state.ui.deviceConfigImporting || (state.serial.requireManualConnect && source !== 'manual')) return false;
+        if (source === 'manual') state.serial.requireManualConnect = false;
         if (!state.serial.supported) {
           toast('不支持 Web Serial API', '请使用 Chrome 或 Edge，在 HTTPS 或 localhost 下打开工作台。', 'error');
           return false;
@@ -9383,10 +9642,14 @@
           port = source === 'manual'
             ? await navigator.serial.requestPort()
             : (preferredPort || state.serial.portHint);
-          if (!port) return false;
+          if (!port || state.ui.deviceConfigImporting) return false;
           state.serial.port = port;
           state.serial.portHint = port;
           await port.open(options);
+          if (state.ui.deviceConfigImporting || state.serial.requireManualConnect) {
+            await port.close().catch(() => {});
+            return false;
+          }
           if (source === 'reconnect' && (reconnectSession !== state.serial.reconnectSession || !state.serial.reconnectWanted)) {
             await port.close().catch(() => {});
             return false;
@@ -9657,6 +9920,7 @@
       }
 
       async function sendPayload(payload, source = 'manual', sendOptions = state.settings, metadataExtra = {}) {
+        if (state.ui.deviceConfigImporting) return false;
         if (!state.serial.connected || !state.serial.writer) {
           toast('发送失败', '串口未连接，无法发送当前内容。', 'warn');
           return false;
@@ -9882,7 +10146,7 @@
       }
 
       async function tryInitialSerialConnectPrompt() {
-        if (!state.serial.supported || state.serial.connected) return;
+        if (state.ui.deviceConfigImporting || state.serial.requireManualConnect || !state.serial.supported || state.serial.connected) return;
         try {
           const authorizedPorts = await navigator.serial.getPorts();
           if (authorizedPorts.length === 1) {
@@ -10279,6 +10543,123 @@
         return target;
       }
 
+      const FIXED_FIELD_TYPES = [
+        { value: 'int8', label: 'Int8', bytes: 1 }, { value: 'uint8', label: 'UInt8', bytes: 1 },
+        { value: 'int16', label: 'Int16', bytes: 2 }, { value: 'uint16', label: 'UInt16', bytes: 2 },
+        { value: 'int32', label: 'Int32', bytes: 4 }, { value: 'uint32', label: 'UInt32', bytes: 4 },
+        { value: 'float32', label: 'Float32', bytes: 4 },
+        ...Array.from({ length: 8 }, (_, bit) => ({ value: `bit${bit}`, label: `bit${bit}`, bytes: 1 }))
+      ];
+
+      function snapshotBinaryFields() {
+        return (state.parser.binaryFields || []).map(({ name, offset, dataType, byteOrder }) => ({ name, offset, dataType, byteOrder }));
+      }
+
+      function validateBinaryFields(fields, schema) {
+        const { frameLength } = getBinarySchemaLayout(schema);
+        const names = new Set(getConfiguredBinaryFields(schema, []).map(field => field.key.slice(7)));
+        fields.forEach((field, index) => {
+          const meta = FIXED_FIELD_TYPES.find(type => type.value === field.dataType);
+          const name = typeof field.name === 'string' ? field.name.trim() : '';
+          if (!name || name !== field.name || names.has(name) || ['__proto__', 'constructor', 'prototype'].includes(name)) throw new Error(`字段 ${index + 1}：名称为空、重复或无效`);
+          if (!meta || !['le', 'be'].includes(field.byteOrder)) throw new Error(`字段 ${name}：类型或字节序无效`);
+          if (!Number.isSafeInteger(field.offset) || field.offset < 0 || field.offset + meta.bytes > frameLength) throw new Error(`字段 ${name}：偏移或读取长度超出整帧 ${frameLength} bytes`);
+          names.add(name);
+        });
+      }
+
+      function decodeBinaryFields(bytes, fields) {
+        const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        return fields.map(field => {
+          const type = field.dataType;
+          const meta = FIXED_FIELD_TYPES.find(entry => entry.value === type);
+          if (!meta || !Number.isSafeInteger(field.offset) || field.offset < 0 || field.offset + meta.bytes > bytes.length) throw new Error(`字段 ${field.name} 越界`);
+          const value = type.startsWith('bit')
+            ? (view.getUint8(field.offset) >>> Number(type.slice(3))) & 1
+            : readBinaryValue(view, field.offset, meta.bytes > 1 ? `${type}${field.byteOrder}` : type);
+          return { key: field.name, value };
+        });
+      }
+
+      function renderBinaryFieldsValidation() {
+        const output = document.getElementById('binary-fields-status');
+        try {
+          validateBinaryFields(state.parser.binaryFields, state.parser.binarySchema);
+          output.textContent = '从整帧第 0 字节起算，包含帧头；允许重叠读取，bit0 为 LSB、bit7 为 MSB。';
+          output.dataset.status = 'ok';
+        } catch (error) {
+          output.textContent = error.message;
+          output.dataset.status = 'error';
+        }
+      }
+
+      function renderBinaryFields() {
+        const list = document.getElementById('binary-fields-list');
+        list.innerHTML = state.parser.binaryFields.map(field => `
+          <div class="binary-field-row" data-binary-field-id="${field.id}">
+            <label>名称 <input class="compact-input" data-field-key="name" value="${escapeHtml(field.name)}"></label>
+            <label>偏移 <input class="compact-input" type="number" min="0" step="1" data-field-key="offset" value="${field.offset}"></label>
+            <label>类型 <select class="compact-select" data-field-key="dataType">${FIXED_FIELD_TYPES.map(type => `<option value="${type.value}" ${type.value === field.dataType ? 'selected' : ''}>${type.label}</option>`).join('')}</select></label>
+            <label>字节序 <select class="compact-select" data-field-key="byteOrder" ${FIXED_FIELD_TYPES.find(type => type.value === field.dataType)?.bytes === 1 ? 'disabled' : ''}><option value="le" ${field.byteOrder === 'le' ? 'selected' : ''}>小端 LE</option><option value="be" ${field.byteOrder === 'be' ? 'selected' : ''}>大端 BE</option></select></label>
+            <button class="mini-btn" type="button" data-remove-binary-field aria-label="删除字段">×</button>
+          </div>`).join('') || '<div class="panel-subtitle">尚无固定偏移字段；可添加命名字段供数值框和曲线共用。</div>';
+        syncCustomSelects(list);
+        renderBinaryFieldsValidation();
+      }
+
+      function updateBinaryField(event) {
+        if (event.type === 'input' && event.target.tagName === 'SELECT') return;
+        const row = event.target.closest('[data-binary-field-id]');
+        const field = row && state.parser.binaryFields.find(entry => entry.id === row.dataset.binaryFieldId);
+        const key = event.target.dataset.fieldKey;
+        if (!field || !key) return;
+        field[key] = key === 'offset' ? Number(event.target.value) : event.target.value;
+        if (key === 'dataType') renderBinaryFields();
+        else renderBinaryFieldsValidation();
+        scheduleBinarySchemaReparse();
+        scheduleLocalPrefsSave();
+      }
+
+      function getNumericPanelFields(chart) {
+        const fields = state.parserMode === 'binary' ? getConfiguredBinaryFields(state.parser.binarySchema).filter(field => field.type === 'numeric') : [];
+        const keys = new Set(fields.map(field => field.key));
+        (chart.bindings || []).forEach(key => { if (!keys.has(key)) fields.push({ key, type: 'numeric', missing: true }); });
+        return fields;
+      }
+
+      function renderNumericPanel(chart) {
+        const fields = getNumericPanelFields(chart);
+        return `<article class="chart-panel numeric-panel ${chart.open ? 'is-open' : ''}" data-chart-id="${chart.id}">
+          <div class="numeric-header"><strong data-numeric-heading>${escapeHtml(chart.name)}</strong>
+            <div class="chart-toolbar">
+              <button class="mini-btn" type="button" data-chart-move-up aria-label="上移">↑</button>
+              <button class="mini-btn" type="button" data-chart-move-down aria-label="下移">↓</button>
+              <button class="mini-btn" type="button" data-chart-toggle aria-label="数值框设置">设置</button>
+              <button class="mini-btn" type="button" data-chart-remove aria-label="删除数值框">×</button>
+            </div>
+          </div>
+          <div class="chart-config ${chart.open ? 'open' : ''}">
+            <label>标题 <input class="compact-input" data-numeric-title value="${escapeHtml(chart.name)}"></label>
+            <div class="numeric-field-options">${fields.map(field => `<label><span>${escapeHtml(getFieldDisplayLabel(field.key))}${field.missing ? '（字段不存在）' : ''}</span><input type="checkbox" data-numeric-binding="${escapeHtml(field.key)}" ${chart.bindings.includes(field.key) ? 'checked' : ''}></label>`).join('') || '<span class="panel-subtitle">请先在二进制接收协议中定义字段。</span>'}</div>
+          </div>
+          <div class="numeric-values" data-numeric-values></div>
+        </article>`;
+      }
+
+      function renderNumericPanelValues(chart) {
+        const panel = refs.chartList.querySelector(`[data-chart-id="${chart.id}"]`);
+        const target = panel?.querySelector('[data-numeric-values]');
+        if (!target) return;
+        panel.querySelector('[data-numeric-heading]').textContent = chart.name;
+        const configured = new Set(state.parserMode === 'binary' ? getConfiguredBinaryFields(state.parser.binarySchema).filter(field => field.type === 'numeric').map(field => field.key) : []);
+        const latest = new Map(state.derivedRuntime.latestCards.map(card => [`parsed.${card.key}`, card.value]));
+        target.innerHTML = chart.bindings.map(key => {
+          const series = state.derived.numericSeries[key];
+          const value = configured.has(key) ? (latest.has(key) ? latest.get(key) : series?.[series.length - 1]?.v) : undefined;
+          return `<div class="numeric-value" data-numeric-value="${escapeHtml(key)}"><span>${escapeHtml(getFieldDisplayLabel(key))}</span><strong>${value === undefined ? '等待' : escapeHtml(String(value))}</strong></div>`;
+        }).join('') || '<span class="panel-subtitle">在设置中选择要显示的字段。</span>';
+      }
+
       const BINARY_DATA_TYPES = [
         { value: 'uint8', label: 'UInt8', bytes: 1 },
         { value: 'int8', label: 'Int8', bytes: 1 },
@@ -10306,7 +10687,8 @@
           value: '',
           dataType: 'int8',
           name: '',
-          nameAuto: kind === 'data'
+          nameAuto: kind === 'data',
+          length: 1
         };
         if (kind === 'header') row.value = 'A5';
         if (kind === 'footer') row.value = '5A';
@@ -10376,17 +10758,23 @@
                 <option value="checksum" ${row.kind === 'checksum' ? 'selected' : ''}>校验和</option>
                 <option value="gap" ${row.kind === 'gap' ? 'selected' : ''}>间隔符</option>
               </select>
-              ${usesLiteral
+              ${row.kind === 'gap'
+                ? (row.value
+                  ? `<input class="compact-input" value="旧匹配 ${escapeHtml(row.value)}" readonly title="保留旧配置固定匹配；新建间隔区域只跳过 n 字节">`
+                  : `<input class="compact-input" type="number" min="1" max="65536" step="1" data-binary-length value="${row.length ?? 1}" aria-label="跳过字节数" title="跳过 n bytes">`)
+                : usesLiteral
                 ? `<input class="compact-input" data-binary-value value="${escapeHtml(row.value || '')}" placeholder="${escapeHtml(literalPlaceholder)}">`
                 : usesChecksum
-                  ? `<input class="compact-input" value="SUM8" readonly tabindex="-1">`
+                  ? `<span class="panel-subtitle">${getReceiveChecksum(row).algorithm.toUpperCase()} · ${getBinaryRowLength(row)} byte(s)</span>`
                   : `<select class="compact-select" data-binary-type>${buildBinaryTypeOptions(row.dataType || 'int8')}</select>`}
-              <input class="compact-input" data-binary-name value="${escapeHtml(row.name || '')}" placeholder="name 标签">
+              <div class="binary-name-cell"><input class="compact-input" data-binary-name value="${escapeHtml(row.name || '')}" placeholder="name 标签"></div>
               <button class="mini-btn" type="button" aria-label="删除此行" title="删除此行" data-remove-binary-row ${state.parser.binarySchema.length > 1 ? '' : 'disabled'}>×</button>
+              ${usesChecksum ? `<div class="protocol-checksum-controls">${checksumControls(getReceiveChecksum(row), true)}<span class="panel-subtitle">位置由行顺序决定；关闭校验仍保留字段宽度。</span></div>` : ''}
             </div>
           `;
         }).join('');
         syncCustomSelects(refs.binarySchemaList);
+        renderBinaryFrameLayout();
       }
 
       function updateBinaryRowAutoName(row, rowEl = null) {
@@ -10411,6 +10799,8 @@
           const valueInput = rowEl.querySelector('[data-binary-value]');
           const typeSelect = rowEl.querySelector('[data-binary-type]');
           const nameInput = rowEl.querySelector('[data-binary-name]');
+          const lengthInput = rowEl.querySelector('[data-binary-length]');
+          if (lengthInput) row.length = Number(lengthInput.value);
           if (kindSelect) row.kind = kindSelect.value;
           if (valueInput) row.value = valueInput.value;
           if (typeSelect) row.dataType = typeSelect.value;
@@ -10430,6 +10820,8 @@
           invalidateDerivedCaches();
           if (needsRerender) {
             renderBinarySchemaTable();
+          } else {
+            renderBinaryFrameLayout();
           }
           scheduleRefresh();
         }, 80);
@@ -10717,7 +11109,7 @@
         return fields;
       }
 
-      function getConfiguredBinaryFields(schema) {
+      function getConfiguredBinaryFields(schema, fixedFields = state.parser.binaryFields) {
         const fields = [];
         let dataIndex = 0;
         (schema || []).forEach((row) => {
@@ -10737,6 +11129,7 @@
             fields.push({ key: `parsed.${checksumName}`, type: 'numeric' });
           }
         });
+        (fixedFields || []).forEach(field => fields.push({ key: `parsed.${field.name}`, type: 'numeric' }));
         return fields;
       }
 
@@ -10910,17 +11303,18 @@
         }
       }
 
-      function computeChecksum8(bytes) {
-        return (Array.isArray(bytes) ? bytes : Array.from(bytes || []))
-          .reduce((sum, value) => (sum + (Number(value) & 0xFF)) & 0xFF, 0);
-      }
-
-      function parseBinarySchemaFrameAt(buffer, schema, startIndex = 0) {
+      function parseBinarySchemaFrameAt(buffer, schema, startIndex = 0, fields = []) {
         if (!Array.isArray(schema) || !schema.length) return null;
         const bytes = Array.isArray(buffer) ? buffer : Array.from(buffer || []);
         if (startIndex >= bytes.length) {
           return { status: 'incomplete', nextIndex: startIndex };
         }
+        let layout;
+        try { layout = getBinarySchemaLayout(schema); } catch (error) {
+          return { status: 'mismatch', nextIndex: startIndex + 1 };
+        }
+        if (startIndex + layout.frameLength > bytes.length) return { status: 'incomplete', nextIndex: startIndex };
+        const checks = [];
         const view = new DataView(Uint8Array.from(bytes).buffer);
         const cards = [];
         const values = {};
@@ -10930,10 +11324,11 @@
           if (row.kind === 'gap') {
             const literal = safeHexBytes(row.value);
             if (!literal.length) {
-              if (offset + 1 > bytes.length) {
+              const length = getBinaryRowLength(row);
+              if (offset + length > bytes.length) {
                 return { status: 'incomplete', nextIndex: startIndex };
               }
-              offset += 1;
+              offset += length;
               continue;
             }
             if (offset + literal.length > bytes.length) {
@@ -10960,23 +11355,18 @@
             continue;
           }
           if (row.kind === 'checksum') {
-            if (offset + 1 > bytes.length) {
-              return { status: 'incomplete', nextIndex: startIndex };
-            }
-            const checksumByte = bytes[offset] & 0xFF;
-            const expectedChecksum = computeChecksum8(checksumBytes);
+            const config = getReceiveChecksum(row);
+            const width = checksumWidth(config);
+            const actual = Uint8Array.from(bytes.slice(offset, offset + width));
+            const input = config.legacy ? checksumBytes : bytes.slice(startIndex + config.start, startIndex + config.start + config.length);
+            const expected = encodeProtocolChecksum(computeProtocolChecksum(input, config.algorithm), config);
+            const ok = !config.enabled || actual.every((value, index) => value === expected[index]);
             const checksumName = String(row.name || 'checksum').trim() || 'checksum';
-            const checksumOk = checksumByte === expectedChecksum;
-            const actualHex = bytesToCompactHex([checksumByte]);
-            const expectedHex = bytesToCompactHex([expectedChecksum]);
-            cards.push({
-              key: checksumName,
-              value: checksumByte,
-              display: checksumOk ? actualHex : `${actualHex}!=${expectedHex}`,
-              status: checksumOk ? 'ok' : 'error'
-            });
-            values[checksumName] = checksumByte;
-            offset += 1;
+            const value = width === 1 ? actual[0] : new DataView(actual.buffer).getUint16(0, config.byteOrder === 'le');
+            if (config.enabled) checks.push({ ok, name: checksumName, algorithm: config.algorithm, actual: bytesToHex(actual), expected: bytesToHex(expected) });
+            cards.push({ key: checksumName, value, display: bytesToHex(actual), status: ok ? 'ok' : 'error' });
+            values[checksumName] = value;
+            offset += width;
             continue;
           }
           const meta = getBinaryTypeMeta(row.dataType);
@@ -11006,8 +11396,20 @@
           }
           offset += meta.bytes;
         }
+        if (!checks.some(check => !check.ok)) {
+          try {
+            validateBinaryFields(fields, schema);
+            decodeBinaryFields(Uint8Array.from(bytes.slice(startIndex, offset)), fields).forEach(card => {
+              cards.push(card);
+              values[card.key] = card.value;
+            });
+          } catch (error) {
+            return { status: 'field-error', nextIndex: offset, checks };
+          }
+        }
         return {
-          status: 'ok',
+          status: checks.some(check => !check.ok) ? 'checksum-error' : 'ok',
+          checks,
           nextIndex: offset,
           frame: {
             cards,
@@ -11018,8 +11420,9 @@
       }
 
       function getBinarySyncHeader(schema) {
-        const headerRow = (schema || []).find((row) => row.kind === 'header' && safeHexBytes(row.value).length);
-        return headerRow ? safeHexBytes(headerRow.value) : [];
+        // A sync header is usable only at byte offset zero.
+        const headerRow = (schema || []).find((row) => getBinaryRowLength(row) > 0);
+        return headerRow?.kind === 'header' ? safeHexBytes(headerRow.value) : [];
       }
 
       function findSubarrayIndex(source, pattern, fromIndex = 0) {
@@ -11038,10 +11441,13 @@
         return -1;
       }
 
-      function extractBinarySchemaFramesFromBytes(bufferBytes, schema) {
+      function extractBinarySchemaFramesFromBytes(bufferBytes, schema, fields = []) {
         const bytes = Array.isArray(bufferBytes) ? bufferBytes : Array.from(bufferBytes || []);
         const frames = [];
-        const header = getBinarySyncHeader(schema);
+        const checks = [];
+        let header;
+        try { header = getBinarySyncHeader(schema); validateBinaryFields(fields, schema); }
+        catch (error) { return { frames, checks, remainder: [] }; }
         const retainTail = Math.max(32, header.length > 0 ? header.length - 1 : 0);
         let offset = 0;
 
@@ -11049,12 +11455,12 @@
           if (header.length) {
             const headerIndex = findSubarrayIndex(bytes, header, offset);
             if (headerIndex === -1) {
-              return { frames, remainder: bytes.slice(Math.max(offset, bytes.length - retainTail)) };
+              return { frames, checks, remainder: bytes.slice(Math.max(offset, bytes.length - retainTail)) };
             }
             offset = headerIndex;
           }
 
-          const parsed = parseBinarySchemaFrameAt(bytes, schema, offset);
+          const parsed = parseBinarySchemaFrameAt(bytes, schema, offset, fields);
           if (!parsed || parsed.status === 'incomplete') {
             break;
           }
@@ -11062,11 +11468,12 @@
             offset = Math.max(offset + 1, parsed.nextIndex || (offset + 1));
             continue;
           }
-          frames.push(parsed.frame);
+          checks.push(...(parsed.checks || []));
+          if (parsed.status === 'ok') frames.push(parsed.frame);
           offset = parsed.nextIndex;
         }
 
-        return { frames, remainder: bytes.slice(offset) };
+        return { frames, checks, remainder: bytes.slice(offset) };
       }
 
       function buildRecommendedRule(events) {
@@ -11095,8 +11502,10 @@
               value: row.value,
               dataType: row.dataType,
               name: row.name,
-              nameAuto: Boolean(row.nameAuto)
-            })))}|${state.settings.textEncoding || ''}`;
+              nameAuto: Boolean(row.nameAuto),
+              ...(row.kind === 'gap' ? { length: row.length ?? (row.value ? safeHexBytes(row.value).length : 1) } : {}),
+              ...(row.checksum ? { checksum: { ...row.checksum } } : {})
+            })))}|${JSON.stringify(snapshotBinaryFields())}|${state.settings.textEncoding || ''}`;
       }
 
       function updateDerivedChartFrameStats(runtime, timestamp) {
@@ -11261,8 +11670,9 @@
           runtime.fieldTypes.set(key, 'numeric');
         });
         runtime.binaryRemainders[chunk.direction].push(...chunkBytes);
-        const extracted = extractBinarySchemaFramesFromBytes(runtime.binaryRemainders[chunk.direction], schema);
+        const extracted = extractBinarySchemaFramesFromBytes(runtime.binaryRemainders[chunk.direction], schema, state.parser.binaryFields);
         runtime.binaryRemainders[chunk.direction] = extracted.remainder;
+        if (extracted.checks.length) runtime.checksumResult = extracted.checks;
         extracted.frames.forEach((frame) => {
           if (!runtime.allCardsMap) runtime.allCardsMap = {};
           frame.cards.forEach(function(c) { runtime.allCardsMap[c.key] = c.value; });
@@ -11408,6 +11818,7 @@
                     cards.push({ key: checksumName, value: '-' });
                   }
                 });
+                state.parser.binaryFields.forEach(field => cards.push({ key: field.name, value: '-' }));
                 return cards;
               })();
       }
@@ -11455,6 +11866,7 @@
           var chartId = panel.dataset.chartId;
           var chart = state.charts.find(function(c) { return c.id === chartId; });
           if (!chart) return;
+          if (chart.type === 'numeric') return;
           var isFft = chart.type === 'fft';
           var showFields = isFft ? allNumeric : allNumeric;
           var bound = chart.bindings || [];
@@ -11556,16 +11968,266 @@
         }
       }
 
+      function createCommand() {
+        return { id: uid('schema'), name: '新指令', template: '00', appendNewline: false, newlineMode: 'rn', checksum: normalizeProtocolChecksum(), parameters: [] };
+      }
+
+      function snapshotCommand(command) {
+        return { name: command.name, template: command.template, appendNewline: command.appendNewline, newlineMode: command.newlineMode,
+          checksum: { ...command.checksum }, parameters: command.parameters.map(({ name, offset, dataType, byteOrder, defaultValue, min, max, options }) => ({ name, offset, dataType, byteOrder, defaultValue, min, max, options })) };
+      }
+
+      function hydrateCommand(command) {
+        return { ...command, id: uid('schema'), checksum: { ...command.checksum }, parameters: command.parameters.map(parameter => ({ ...parameter, id: uid('schema') })) };
+      }
+
+      function commandNumber(text, label) {
+        if (typeof text !== 'string' || !/^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(text.trim()) || !Number.isFinite(Number(text))) throw new Error(`${label}：请输入有效数值`);
+        return Number(text);
+      }
+
+      function commandParameterRange(parameter) {
+        const label = `参数 ${parameter.name}`;
+        const min = parameter.min === '' ? null : commandNumber(parameter.min, `${label}最小值`);
+        const max = parameter.max === '' ? null : commandNumber(parameter.max, `${label}最大值`);
+        if (min !== null && max !== null && min > max) throw new Error(`${label}：最小值不能大于最大值`);
+        return { min, max };
+      }
+
+      function commandParameterValue(parameter, text, checkOptions = true) {
+        const label = `参数 ${parameter.name}`;
+        const value = commandNumber(text, label);
+        const limits = { int8: [-128, 127], uint8: [0, 255], int16: [-32768, 32767], uint16: [0, 65535], int32: [-2147483648, 2147483647], uint32: [0, 4294967295] };
+        if (parameter.dataType === 'float32') {
+          if (!Number.isFinite(Math.fround(value))) throw new Error(`${label}：Float32 编码溢出`);
+        } else {
+          const range = limits[parameter.dataType];
+          if (!range || !Number.isInteger(value) || value < range[0] || value > range[1]) throw new Error(`${label}：超出 ${parameter.dataType} 整数范围`);
+        }
+        const { min, max } = commandParameterRange(parameter);
+        if ((min !== null && value < min) || (max !== null && value > max)) throw new Error(`${label}：超出允许范围`);
+        if (checkOptions && parameter.options.trim()) {
+          if (!commandOptions(parameter).some(option => option.value === value)) throw new Error(`${label}：必须选择已定义的枚举值`);
+        }
+        return value;
+      }
+
+      function commandOptions(parameter) {
+        if (typeof parameter.options !== 'string') throw new Error(`参数 ${parameter.name}：枚举配置无效`);
+        const values = new Set();
+        return parameter.options.split(/\r?\n/).filter(line => line.trim()).map(line => {
+          const split = line.lastIndexOf('=');
+          const label = line.slice(0, split).trim();
+          if (split < 1 || !label) throw new Error(`参数 ${parameter.name}：枚举每行应为 名称=数值`);
+          const value = commandParameterValue(parameter, line.slice(split + 1), false);
+          if (values.has(value)) throw new Error(`参数 ${parameter.name}：枚举值重复`);
+          values.add(value);
+          return { label, value };
+        });
+      }
+
+      function validateCommandDefinition(command) {
+        if (typeof command.name !== 'string' || !command.name.trim()) throw new Error('指令名称不能为空');
+        if (typeof command.template !== 'string' || !/^[0-9a-f\s,]*$/i.test(command.template.replace(/0x/gi, ''))) throw new Error('指令模板必须为 HEX 字节');
+        const bytes = parseHexString(command.template);
+        if (!bytes.length || bytes.length > SERIAL_BUFFER_SIZE) throw new Error('指令模板长度必须为 1～65536 bytes');
+        if (typeof command.appendNewline !== 'boolean' || !['r', 'n', 'rn'].includes(command.newlineMode)) throw new Error('指令换行设置无效');
+        const frameLength = bytes.length + (command.appendNewline ? (command.newlineMode === 'rn' ? 2 : 1) : 0);
+        if (frameLength > SERIAL_BUFFER_SIZE) throw new Error('追加换行后整帧过长');
+        validateProtocolChecksum(command.checksum, frameLength);
+        const occupied = [];
+        const names = new Set();
+        command.parameters.forEach(parameter => {
+          const meta = FIXED_FIELD_TYPES.find(type => type.value === parameter.dataType && !type.value.startsWith('bit'));
+          if (typeof parameter.name !== 'string' || !parameter.name.trim() || names.has(parameter.name)) throw new Error('参数名称为空或重复');
+          names.add(parameter.name);
+          if (!meta || !['le', 'be'].includes(parameter.byteOrder)) throw new Error(`参数 ${parameter.name}：类型或字节序无效`);
+          if (!Number.isSafeInteger(parameter.offset) || parameter.offset < 0 || parameter.offset + meta.bytes > bytes.length) throw new Error(`参数 ${parameter.name}：字段超出模板`);
+          const end = parameter.offset + meta.bytes;
+          if (occupied.some(range => parameter.offset < range.end && range.start < end)) throw new Error(`参数 ${parameter.name}：与其他参数重叠`);
+          if (command.checksum.enabled && parameter.offset < command.checksum.offset + checksumWidth(command.checksum) && command.checksum.offset < end) throw new Error(`参数 ${parameter.name}：与校验字段重叠`);
+          occupied.push({ start: parameter.offset, end });
+          if (typeof parameter.defaultValue !== 'string') throw new Error(`参数 ${parameter.name}：默认值无效`);
+          commandParameterRange(parameter);
+          commandOptions(parameter);
+          if (parameter.defaultValue !== '') commandParameterValue(parameter, parameter.defaultValue);
+        });
+        return bytes;
+      }
+
+      function buildCommandFrame(command, values = command.parameters.map(parameter => parameter.defaultValue)) {
+        const bytes = validateCommandDefinition(command);
+        const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        const setters = { int8: 'setInt8', uint8: 'setUint8', int16: 'setInt16', uint16: 'setUint16', int32: 'setInt32', uint32: 'setUint32', float32: 'setFloat32' };
+        command.parameters.forEach((parameter, index) => {
+          const value = commandParameterValue(parameter, values[index]);
+          view[setters[parameter.dataType]](parameter.offset, value, parameter.byteOrder === 'le');
+        });
+        return buildPayloadFrame(bytesToHex(bytes), { sendMode: 'hex', appendNewline: command.appendNewline, newlineMode: command.newlineMode, txChecksum: command.checksum });
+      }
+
+      function getCommandRuntime(command) {
+        return state.ui.commandRuntime[command.id] || (state.ui.commandRuntime[command.id] = { values: {}, status: '', sending: false });
+      }
+
+      function commandInputValues(command) {
+        const runtime = getCommandRuntime(command);
+        return command.parameters.map(parameter => Object.prototype.hasOwnProperty.call(runtime.values, parameter.id) ? runtime.values[parameter.id] : parameter.defaultValue);
+      }
+
+      function renderCommandParameter(parameter) {
+        return `<div class="command-parameter-editor" data-command-param-id="${parameter.id}">
+          <label>名称<input class="compact-input" data-command-param-key="name" value="${escapeHtml(parameter.name)}"></label>
+          <label>偏移<input class="compact-input" type="number" min="0" step="1" data-command-param-key="offset" value="${parameter.offset}"></label>
+          <label>类型<select class="compact-select" data-command-param-key="dataType">${FIXED_FIELD_TYPES.filter(type => !type.value.startsWith('bit')).map(type => `<option value="${type.value}" ${type.value === parameter.dataType ? 'selected' : ''}>${type.label}</option>`).join('')}</select></label>
+          <label>字节序<select class="compact-select" data-command-param-key="byteOrder"><option value="le" ${parameter.byteOrder === 'le' ? 'selected' : ''}>小端 LE</option><option value="be" ${parameter.byteOrder === 'be' ? 'selected' : ''}>大端 BE</option></select></label>
+          <label>默认值<input class="compact-input" data-command-param-key="defaultValue" value="${escapeHtml(parameter.defaultValue)}"></label>
+          <label>最小值（可空）<input class="compact-input" data-command-param-key="min" value="${escapeHtml(parameter.min)}"></label>
+          <label>最大值（可空）<input class="compact-input" data-command-param-key="max" value="${escapeHtml(parameter.max)}"></label>
+          <label>枚举（可空，每行 名称=数值）<textarea class="compact-input" data-command-param-key="options">${escapeHtml(parameter.options)}</textarea></label>
+          <button class="mini-btn" type="button" data-remove-command-param>删除参数</button>
+        </div>`;
+      }
+
+      function renderCommandPanel(chart) {
+        return `<article class="chart-panel numeric-panel command-panel ${chart.open ? 'is-open' : ''}" data-chart-id="${chart.id}">
+          <div class="numeric-header"><strong data-command-heading>${escapeHtml(chart.name)}</strong><div class="chart-toolbar">
+            <button class="mini-btn" type="button" data-chart-move-up aria-label="上移">↑</button><button class="mini-btn" type="button" data-chart-move-down aria-label="下移">↓</button>
+            <button class="mini-btn" type="button" data-chart-toggle aria-label="指令框设置">设置</button><button class="mini-btn" type="button" data-chart-remove aria-label="删除指令框">×</button>
+          </div></div>
+          <div class="chart-config ${chart.open ? 'open' : ''}"><label>标题<input class="compact-input" data-command-panel-title value="${escapeHtml(chart.name)}"></label><button class="secondary-btn" type="button" data-add-command>新增指令按钮</button></div>
+          ${chart.commands.map(command => `<section class="command-card" data-command-id="${command.id}">
+            <details class="command-editor"><summary>编辑 ${escapeHtml(command.name)}</summary>
+              <label>按钮名称<input class="compact-input" data-command-key="name" value="${escapeHtml(command.name)}"></label>
+              <label>HEX 模板（含参数及校验占位字节）<textarea class="compact-input" data-command-key="template">${escapeHtml(command.template)}</textarea></label>
+              <div class="button-row"><label><input type="checkbox" data-command-key="appendNewline" ${command.appendNewline ? 'checked' : ''}>追加换行</label><select class="compact-select" data-command-key="newlineMode"><option value="r" ${command.newlineMode === 'r' ? 'selected' : ''}>CR</option><option value="n" ${command.newlineMode === 'n' ? 'selected' : ''}>LF</option><option value="rn" ${command.newlineMode === 'rn' ? 'selected' : ''}>CRLF</option></select></div>
+              <div class="protocol-checksum-controls">${checksumControls(command.checksum)}</div>
+              <div class="panel-subtitle">本按钮独立校验；偏移从整帧 0 起算，参数写入模板后追加换行并计算校验。</div>
+              ${command.parameters.map(renderCommandParameter).join('')}
+              <div class="button-row"><button class="secondary-btn" type="button" data-add-command-param>新增参数</button><button class="secondary-btn danger-btn" type="button" data-remove-command>删除指令</button></div>
+            </details>
+            <div class="command-inputs" data-command-inputs></div>
+            <button class="primary-btn" type="button" data-send-command>${escapeHtml(command.name)}</button>
+            <output class="command-preview" data-command-preview></output><div class="panel-subtitle" data-command-status role="status"></div>
+          </section>`).join('') || '<div class="panel-subtitle">在设置中新增指令按钮。</div>'}
+        </article>`;
+      }
+
+      function refreshCommandPanel(chart) {
+        const panel = refs.chartList.querySelector(`[data-chart-id="${chart.id}"]`);
+        if (!panel) return;
+        panel.querySelector('[data-command-heading]').textContent = chart.name;
+        chart.commands.forEach(command => {
+          const card = panel.querySelector(`[data-command-id="${command.id}"]`);
+          const runtime = getCommandRuntime(command);
+          card.querySelector('.command-editor > summary').textContent = `编辑 ${command.name}`;
+          const inputs = card.querySelector('[data-command-inputs]');
+          const signature = JSON.stringify(command.parameters);
+          if (inputs.dataset.signature !== signature) {
+            inputs.dataset.signature = signature;
+            inputs.innerHTML = command.parameters.map(parameter => {
+              let options = [];
+              try { options = commandOptions(parameter); } catch (error) { /* The preview reports invalid definitions. */ }
+              const value = commandInputValues(command)[command.parameters.indexOf(parameter)];
+              return `<label>${escapeHtml(parameter.name)}${options.length ? `<select class="compact-select" data-command-value="${parameter.id}"><option value="">请选择</option>${options.map(option => `<option value="${option.value}" ${String(value ?? '').trim() !== '' && option.value === Number(value) ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}</select>` : `<input class="compact-input" data-command-value="${parameter.id}" value="${escapeHtml(value ?? '')}">`}</label>`;
+            }).join('');
+            syncCustomSelects(inputs);
+          }
+          const setDisabled = (input, disabled) => {
+            if (input.disabled === disabled) return;
+            input.disabled = disabled;
+            if (input.tagName === 'SELECT') syncCustomSelects(input.parentElement);
+          };
+          card.querySelectorAll('[data-command-value], [data-command-key], [data-checksum-key], [data-command-param-key], [data-add-command-param], [data-remove-command-param], [data-remove-command]').forEach(input => { if (input.dataset.commandParamKey !== 'byteOrder') setDisabled(input, runtime.sending); });
+          command.parameters.forEach(parameter => {
+            const selector = card.querySelector(`[data-command-param-id="${parameter.id}"] [data-command-param-key="byteOrder"]`);
+            if (selector) setDisabled(selector, runtime.sending || FIXED_FIELD_TYPES.find(type => type.value === parameter.dataType)?.bytes === 1);
+          });
+          const send = card.querySelector('[data-send-command]');
+          send.textContent = command.name;
+          const preview = card.querySelector('[data-command-preview]');
+          let valid = false;
+          try {
+            const frame = buildCommandFrame(command, commandInputValues(command));
+            preview.textContent = `最终 HEX：${bytesToHex(frame.bytes)}`;
+            preview.dataset.status = 'ok'; valid = true;
+          } catch (error) {
+            preview.textContent = `无法发送：${error.message}`; preview.dataset.status = 'error';
+          }
+          send.disabled = !valid || !state.serial.connected || runtime.sending || state.ui.deviceConfigImporting;
+          send.title = !state.serial.connected ? '请先手动连接串口' : '仅发送，不等待设备应答';
+          card.querySelector('[data-command-status]').textContent = runtime.status || (!state.serial.connected ? '未连接串口' : '');
+        });
+      }
+
+      async function sendCommand(chart, command) {
+        const runtime = getCommandRuntime(command);
+        if (runtime.sending) return false;
+        try {
+          const frame = buildCommandFrame(command, commandInputValues(command));
+          runtime.sending = true; runtime.status = '发送中'; scheduleRefresh({ charts: true });
+          const sent = await sendPayload(bytesToHex(frame.bytes), 'command', { sendMode: 'hex', appendNewline: false, txChecksum: normalizeProtocolChecksum() }, { commandName: command.name, commandPanel: chart.name });
+          runtime.status = sent ? '已发送' : '发送失败（串口未就绪或写入失败）';
+          return sent;
+        } catch (error) {
+          runtime.status = `发送失败：${error.message}`; return false;
+        } finally {
+          runtime.sending = false; scheduleRefresh({ charts: true });
+        }
+      }
+
+      function handleCommandInput(event, chart) {
+        if (event.type === 'input' && (event.target.tagName === 'SELECT' || event.target.type === 'checkbox')) return;
+        if (event.target.hasAttribute('data-command-panel-title')) { chart.name = event.target.value; scheduleRefresh({ charts: true }); return; }
+        const card = event.target.closest('[data-command-id]');
+        const command = card && chart.commands.find(entry => entry.id === card.dataset.commandId);
+        if (!command) return;
+        const runtime = getCommandRuntime(command);
+        runtime.status = '';
+        if (event.target.hasAttribute('data-command-value')) runtime.values[event.target.dataset.commandValue] = event.target.value;
+        else if (event.target.dataset.commandKey) {
+          const key = event.target.dataset.commandKey;
+          command[key] = key === 'appendNewline' ? event.target.checked : event.target.value;
+        } else if (event.target.dataset.checksumKey) {
+          const key = event.target.dataset.checksumKey;
+          command.checksum[key] = key === 'enabled' ? event.target.checked : ['start', 'length', 'offset'].includes(key) ? Number(event.target.value) : event.target.value;
+        } else if (event.target.dataset.commandParamKey) {
+          const parameter = command.parameters.find(entry => entry.id === event.target.closest('[data-command-param-id]').dataset.commandParamId);
+          const key = event.target.dataset.commandParamKey;
+          parameter[key] = key === 'offset' ? Number(event.target.value) : event.target.value;
+        }
+        scheduleRefresh({ charts: true });
+      }
+
+      function handleCommandClick(event, chart) {
+        if (event.target.closest('[data-chart-remove]')) chart.commands.forEach(command => { delete state.ui.commandRuntime[command.id]; });
+        const card = event.target.closest('[data-command-id]');
+        const command = card && chart.commands.find(entry => entry.id === card.dataset.commandId);
+        let changed = false;
+        if (event.target.closest('[data-add-command]')) { chart.commands.push(createCommand()); changed = true; }
+        if (command && event.target.closest('[data-remove-command]')) { chart.commands = chart.commands.filter(entry => entry.id !== command.id); delete state.ui.commandRuntime[command.id]; changed = true; }
+        if (command && event.target.closest('[data-add-command-param]')) {
+          const offset = command.parameters.reduce((end, parameter) => Math.max(end, parameter.offset + (FIXED_FIELD_TYPES.find(type => type.value === parameter.dataType)?.bytes || 1)), 0);
+          let index = 1; while (command.parameters.some(parameter => parameter.name === `param${index}`)) index++;
+          command.parameters.push({ id: uid('schema'), name: `param${index}`, offset, dataType: 'uint8', byteOrder: 'le', defaultValue: '0', min: '', max: '', options: '' }); changed = true;
+        }
+        if (command && event.target.closest('[data-remove-command-param]')) { const id = event.target.closest('[data-command-param-id]').dataset.commandParamId; command.parameters = command.parameters.filter(parameter => parameter.id !== id); delete getCommandRuntime(command).values[id]; changed = true; }
+        if (command && event.target.closest('[data-send-command]')) { sendCommand(chart, command); return true; }
+        if (changed) { renderCharts(true); scheduleLocalPrefsSave(); return true; }
+        return false;
+      }
+
       function createChart(type) {
-        const normalizedType = type === 'fft' ? 'fft' : type === 'bar' ? 'bar' : 'time';
+        const normalizedType = ['time', 'fft', 'bar', 'numeric', 'command'].includes(type) ? type : 'time';
         const chartTitle = normalizedType === 'time'
           ? `时域图 ${chartIdCounter}`
           : normalizedType === 'fft'
             ? `频域图 ${chartIdCounter}`
-            : `柱状图 ${chartIdCounter}`;
+            : normalizedType === 'numeric' ? `数值框 ${chartIdCounter}` : normalizedType === 'command' ? `指令框 ${chartIdCounter}` : `柱状图 ${chartIdCounter}`;
         return {
           id: uid('chart'),
           type: normalizedType,
+          ...(normalizedType === 'command' ? { commands: [createCommand()] } : {}),
           name: chartTitle,
           open: false,
           bindings: [],
@@ -11589,6 +12251,9 @@
       }
 
       function applyChartAutoPreset(chart) {
+        const panel = refs.chartList?.querySelector(`[data-chart-id="${chart.id}"]`);
+        panel?.querySelectorAll('[data-chart-range]').forEach(input => { delete input.dataset.edited; });
+        const error = panel?.querySelector('[data-chart-range-error]'); if (error) error.textContent = '';
         resetChartView(chart);
         syncChartViewUi(chart);
       }
@@ -11737,6 +12402,8 @@
       }
 
       function normalizeChartBindings(chart, selectableFields) {
+        if (chart.type === 'command') return [];
+        if (chart.type === 'numeric') return getNumericPanelFields(chart);
         if (!selectableFields) selectableFields = getChartSelectableFields(chart && chart.type);
         const available = Array.isArray(selectableFields) ? selectableFields : [];
         if (!available.length) {
@@ -11744,6 +12411,15 @@
           return chart.bindings.map((key) => ({ key, type: 'numeric' }));
         }
         const allowed = new Set(available.map((field) => field.key));
+        // Text field names may arrive only after the saved device starts reporting.
+        if (state.parserMode === 'text') {
+          (chart.bindings || []).forEach((key) => {
+            if (key.startsWith('parsed.') && !allowed.has(key)) {
+              available.push({ key, type: 'numeric' });
+              allowed.add(key);
+            }
+          });
+        }
         chart.bindings = chart.bindings.filter((key) => allowed.has(key));
         return available;
       }
@@ -12511,6 +13187,8 @@
       }
 
       function renderChartPanel(chart) {
+        if (chart.type === 'command') return renderCommandPanel(chart);
+        if (chart.type === 'numeric') return renderNumericPanel(chart);
         const fieldItems = normalizeChartBindings(chart);
         const yAxisBindingKey = ensureChartYAxisBinding(chart);
         var configuredMap = {};
@@ -12615,13 +13293,19 @@
             </div>
             <div class="chart-panel-resize-handle chart-panel-resize-handle-top" data-chart-panel-resize="top"></div>
             <div class="chart-toolbar">
-              <button class="chart-tool-btn chart-auto-btn ${chart.viewMode === 'auto' ? 'is-active' : ''}" type="button" data-chart-auto title="应用常用范围" aria-label="应用常用范围">AUTO</button>
+              <button class="chart-tool-btn chart-auto-btn ${chart.viewMode === 'auto' ? 'is-active' : ''}" type="button" data-chart-auto title="恢复自动量程与实时跟随" aria-label="恢复自动量程与实时跟随">AUTO</button>
               <button class="chart-tool-btn" type="button" data-chart-toggle title="图表设置" aria-label="图表设置">${settingsIcon}</button>
               <button class="chart-tool-btn" type="button" data-chart-remove title="关闭图表" aria-label="关闭图表">${closeIcon}</button>
             </div>
             <div class="chart-view-chip ${canOpenChartViewPicker(chart) ? 'is-selectable' : ''}" data-chart-view-chip>${getChartViewChipLabel(chart)}</div>
             <div class="chart-config chart-flyout ${chart.open ? 'open' : ''}">
               ${chart.type === 'bar' ? barConfig : timeConfig}
+              ${chart.type !== 'bar' ? `<div class="chart-config-section">
+                <div class="panel-subtitle">手动范围 · X：${chart.type === 'time' ? '相对冻结时刻的毫秒（ms）' : '频率（Hz）'}；Y：当前所选纵轴（全部通道时统一应用）</div>
+                ${['x', 'y'].map(axis => `<div class="chart-config-pair">${['min', 'max'].map(edge => `<div class="chart-config-field"><label>${axis.toUpperCase()} ${edge === 'min' ? '最小值' : '最大值'}</label><input type="number" step="any" data-chart-range="${axis}-${edge}" aria-label="${axis.toUpperCase()} ${edge}"></div>`).join('')}</div>`).join('')}
+                <button type="button" data-chart-range-apply>应用范围</button>
+                <div class="chart-range-error" role="status" data-chart-range-error></div>
+              </div>` : ''}
             </div>
             <div class="chart-canvas-wrap" style="height:${chartHeight}px">
               ${yAxisBindingOptions ? `<div class="chart-axis-binding-picker chart-flyout">${yAxisBindingOptions}</div>` : ''}
@@ -12629,6 +13313,12 @@
               ${chart.type !== 'bar' ? '<div class="chart-axis-overlay chart-axis-overlay-x" data-chart-axis-x-label>缩放横轴</div>' : ''}
               <canvas id="canvas-${chart.id}" width="1024" height="220"></canvas>
             </div>
+            ${chart.type !== 'bar' ? `<div class="chart-view-controls">
+              <button type="button" data-chart-zoom="x:2" title="只放大横轴">X＋</button><button type="button" data-chart-zoom="x:0.5" title="只缩小横轴">X－</button>
+              <button type="button" data-chart-zoom="y:2" title="只放大当前纵轴">Y＋</button><button type="button" data-chart-zoom="y:0.5" title="只缩小当前纵轴">Y－</button>
+              <button type="button" data-chart-auto>恢复自动${chart.type === 'time' ? '／实时跟随' : '量程'}</button>
+              <span data-chart-view-status></span>
+            </div>` : ''}
             <div class="chart-panel-resize-handle chart-panel-resize-handle-bottom" data-chart-panel-resize="bottom"></div>
           </article>
         `;
@@ -12678,6 +13368,11 @@
       }
 
       function renderCharts(force = false) {
+        refs.chartList.style.setProperty('--component-columns', state.ui.componentColumns);
+        const columnsChanged = refs.componentColumns.value !== String(state.ui.componentColumns);
+        refs.componentColumns.value = String(state.ui.componentColumns);
+        refs.componentColumns.title = '所有组件等宽排列，任何窗口宽度都保持所选列数';
+        if (columnsChanged || !refs.componentColumns.closest('.custom-select')) syncCustomSelects(refs.componentColumns.parentElement);
         if (force || !refs.chartList.dataset.rendered) {
           const scrollState = captureChartScrollState();
           refs.chartList.innerHTML = state.charts.length
@@ -12699,6 +13394,8 @@
           const paintForce = state.ui.chartPaintForce;
           state.ui.chartPaintForce = false;
           state.charts.forEach((chart) => {
+            if (chart.type === 'command') { refreshCommandPanel(chart); return; }
+            if (chart.type === 'numeric') { renderNumericPanelValues(chart); return; }
             syncChartViewUi(chart);
             syncChartCanvasHeightUi(chart);
             drawChart(chart, paintForce);
@@ -12814,6 +13511,65 @@
         if (yLabel) yLabel.textContent = '缩放纵轴';
         const xLabel = panel.querySelector('[data-chart-axis-x-label]');
         if (xLabel) xLabel.textContent = '缩放横轴';
+        const status = panel.querySelector('[data-chart-view-status]');
+        if (status) status.textContent = `${chart.viewMode === 'auto' ? (chart.type === 'time' ? '实时跟随 · 最近 10 秒' : '自动量程') : '手动视图'} · 拖动图内平移；轴区拖动／滚轮单轴缩放；设置中输入范围`;
+        const meta = chart.drawMeta;
+        if (meta && !panel.querySelector('[data-chart-range]:focus')) {
+          panel.querySelectorAll('[data-chart-range]').forEach(input => {
+            if (input.dataset.edited) return;
+            const [axis, edge] = input.dataset.chartRange.split('-');
+            input.value = String(Number(meta[`${axis}Range`][edge].toPrecision(12)));
+          });
+        }
+      }
+
+      function getCombinedChartYRange(chart, fallback) {
+        const ranges = chart.bindings.map(key => {
+          const view = chart.bindingViewY[key];
+          return view ? getViewRange(view.baseMin, view.baseMax, view.zoom, view.offset, null, null, 1e-6, Infinity) : fallback;
+        });
+        const min = Math.min(...ranges.map(range => range.min));
+        const max = Math.max(...ranges.map(range => range.max));
+        return ranges.length ? {min, max, range: Math.max(1e-9, max - min)} : fallback;
+      }
+
+      function changeChartAxisZoom(chart, axis, factor) {
+        if (!chart.drawMeta) return;
+        setChartManualView(chart);
+        if (axis === 'x') chart.viewZoomX = clamp(chart.viewZoomX * factor, CHART_ZOOM_MIN, CHART_ZOOM_MAX);
+        else if (chart.alignScale) chart.viewZoomY = Math.max(1e-6, chart.viewZoomY * factor);
+        else {
+          const key = ensureChartYAxisBinding(chart);
+          (key === '__all__' ? chart.bindings : [key]).forEach(binding => {
+            const view = chart.bindingViewY[binding];
+            if (view) view.zoom = Math.max(1e-6, view.zoom * factor);
+          });
+        }
+        drawChart(chart); syncChartViewUi(chart); scheduleLocalPrefsSave();
+      }
+
+      function applyChartRangeInputs(chart, panel) {
+        const values = ['x-min', 'x-max', 'y-min', 'y-max'].map(key => {
+          const input = panel.querySelector(`[data-chart-range="${key}"]`);
+          return input.value.trim() === '' ? NaN : Number(input.value);
+        });
+        const [xMin, xMax, yMin, yMax] = values;
+        const error = panel.querySelector('[data-chart-range-error]');
+        if (!values.every(Number.isFinite) || !Number.isFinite(xMax - xMin) || !Number.isFinite(yMax - yMin) || xMax - xMin < 1e-9 || yMax - yMin < 1e-9) {
+          error.textContent = '范围必须是有限数值，且最大值大于最小值（跨度至少 1e-9）。'; return;
+        }
+        setChartManualView(chart);
+        chart.viewBaseXMin = xMin; chart.viewBaseXMax = xMax; chart.viewZoomX = 1; chart.viewOffsetX = 0;
+        if (chart.alignScale) {
+          chart.viewBaseYMin = yMin; chart.viewBaseYMax = yMax; chart.viewZoomY = 1; chart.viewOffsetY = 0;
+        } else {
+          const key = ensureChartYAxisBinding(chart);
+          (key === '__all__' ? chart.bindings : [key]).forEach(binding => {
+            chart.bindingViewY[binding] = {baseMin: yMin, baseMax: yMax, zoom: 1, offset: 0};
+          });
+        }
+        panel.querySelectorAll('[data-chart-range]').forEach(input => { delete input.dataset.edited; });
+        error.textContent = ''; drawChart(chart); syncChartViewUi(chart); scheduleLocalPrefsSave();
       }
 
       function clampChartViewValue(value, min, max, fallback) {
@@ -12830,26 +13586,22 @@
             ensureChartYAxisBinding(chart);
             (chart.bindings || []).forEach((key) => {
               const autoRange = meta.perKeyAutoRange[key] || { min: meta.yClampMin, max: meta.yClampMax };
-              if (!chart.bindingViewY[key]) {
-                chart.bindingViewY[key] = { zoom: 1, offset: 0, baseMin: chart.type === 'fft' ? 0 : autoRange.min, baseMax: autoRange.max };
-                return;
-              }
-              if (!Number.isFinite(chart.bindingViewY[key].baseMin)) chart.bindingViewY[key].baseMin = chart.type === 'fft' ? 0 : autoRange.min;
-              if (!Number.isFinite(chart.bindingViewY[key].baseMax)) chart.bindingViewY[key].baseMax = autoRange.max;
-              if (!Number.isFinite(chart.bindingViewY[key].zoom)) chart.bindingViewY[key].zoom = 1;
-              if (!Number.isFinite(chart.bindingViewY[key].offset)) chart.bindingViewY[key].offset = 0;
+              chart.bindingViewY[key] = { zoom: 1, offset: 0, baseMin: autoRange.min, baseMax: autoRange.max };
             });
           } else {
             chart.viewBaseYMin = chart.type === 'fft' ? 0 : (Number.isFinite(meta.yRange?.min) ? meta.yRange.min : meta.yClampMin);
             chart.viewBaseYMax = Number.isFinite(meta.yRange?.max) ? meta.yRange.max : meta.yClampMax;
           }
         }
+        if (chart.type === 'time' && chart.viewFollowLatestX !== false) chart.viewTimeAnchor = chart.drawMeta?.timeOrigin ?? null;
+        chart.viewFollowLatestX = false;
         chart.viewMode = 'manual';
         syncChartViewUi(chart);
       }
 
       function resetChartView(chart) {
         chart.viewMode = 'auto';
+        chart.viewTimeAnchor = null;
         chart.viewZoomX = 1;
         chart.viewZoomY = 1;
         chart.viewOffsetX = 0;
@@ -12878,17 +13630,6 @@
           min: center - visibleRange * 0.5,
           max: center + visibleRange * 0.5,
           range: visibleRange
-        };
-      }
-
-      function getAnchoredPositiveRange(baseMax, zoom, zoomMin = CHART_ZOOM_MIN, zoomMax = CHART_ZOOM_MAX) {
-        const safeBaseMax = Math.max(1e-6, Number.isFinite(baseMax) ? baseMax : 1);
-        const safeZoom = clampChartViewValue(zoom, zoomMin, zoomMax, 1);
-        const visibleMax = Math.max(1e-6, safeBaseMax / safeZoom);
-        return {
-          min: 0,
-          max: visibleMax,
-          range: visibleMax
         };
       }
 
@@ -13029,7 +13770,8 @@
 
       function drawGrid(ctx, left, top, plotW, plotH, xRange, yRange, xTicks, yTicks) {
         ctx.save();
-        ctx.strokeStyle = state.theme === 'dark' ? 'rgba(143,168,184,0.15)' : 'rgba(25,48,72,0.08)';
+        ctx.strokeStyle = resolveTheme(state.theme) === 'dark' ? 'rgba(143,168,184,0.23)' : 'rgba(25,48,72,0.15)';
+        ctx.setLineDash([4, 4]);
         ctx.lineWidth = 1;
         yTicks.forEach((tick) => {
           const y = top + (1 - ((tick - yRange.min) / Math.max(1e-9, yRange.range))) * plotH;
@@ -13056,8 +13798,8 @@
         const right = left + plotW;
         const bottom = top + plotH;
         ctx.save();
-        ctx.strokeStyle = state.theme === 'dark' ? 'rgba(210,228,236,0.22)' : 'rgba(25,48,72,0.16)';
-        ctx.fillStyle = state.theme === 'dark' ? 'rgba(220,235,242,0.72)' : 'rgba(18,36,54,0.66)';
+        ctx.strokeStyle = resolveTheme(state.theme) === 'dark' ? 'rgba(210,228,236,0.22)' : 'rgba(25,48,72,0.16)';
+        ctx.fillStyle = resolveTheme(state.theme) === 'dark' ? 'rgba(220,235,242,0.72)' : 'rgba(18,36,54,0.66)';
         ctx.lineWidth = 1;
         ctx.font = '11px "Segoe UI", "PingFang SC", sans-serif';
         ctx.beginPath();
@@ -13111,6 +13853,10 @@
           }
           if (lastT > maxTime) maxTime = lastT;
         });
+        if (chart.viewMode === 'manual' && chart.viewFollowLatestX === false) {
+          if (!Number.isFinite(chart.viewTimeAnchor)) chart.viewTimeAnchor = maxTime;
+          maxTime = chart.viewTimeAnchor;
+        }
         const autoRangeMs = 10000;
         const baseTimeMin = -autoRangeMs;
         const baseTimeMax = 0;
@@ -13187,7 +13933,9 @@
         const yAxisTitle = !chart.alignScale && yAxisBindingKey
           ? `${baseYTitle}（${yAxisBindingKey === '__all__' ? '全部通道' : getFieldDisplayLabel(yAxisBindingKey)}）`
           : baseYTitle;
-        const yRange = chart.viewMode === 'manual'
+        const yRange = chart.viewMode === 'manual' && controlsAllChannels
+          ? getCombinedChartYRange(chart, {min: manualBaseYMin, max: manualBaseYMax, range: manualBaseYMax - manualBaseYMin})
+          : chart.viewMode === 'manual'
           ? getViewRange(
               manualBaseYMin,
               manualBaseYMax,
@@ -13223,6 +13971,7 @@
           xTitle: '时间',
           yTitle: yAxisTitle,
           type: 'time',
+          timeOrigin: maxTime,
           anchorTime: 0,
           yBindingKey: yAxisBindingKey,
           controlsAllChannels,
@@ -13232,7 +13981,7 @@
         if (xOuterMin <= 0 && xOuterMax >= 0) {
           const zeroX = ((0 - xOuterMin) / Math.max(1e-9, xOuterMax - xOuterMin)) * width;
           ctx.save();
-          ctx.strokeStyle = state.theme === 'dark' ? 'rgba(58, 204, 154, 0.9)' : 'rgba(14, 159, 110, 0.9)';
+          ctx.strokeStyle = resolveTheme(state.theme) === 'dark' ? 'rgba(58, 204, 154, 0.9)' : 'rgba(14, 159, 110, 0.9)';
           ctx.lineWidth = 1.5;
           ctx.beginPath();
           ctx.moveTo(zeroX, padding.top);
@@ -13247,7 +13996,7 @@
           padding,
           xRange,
           yRange,
-          '时间',
+          '相对时间 (s)',
           yAxisTitle,
           xTicks,
           yTicks,
@@ -13483,7 +14232,7 @@
           ctx.fill();
           ctx.restore();
           ctx.save();
-          ctx.fillStyle = state.theme === 'dark' ? '#e5f0f5' : '#193048';
+          ctx.fillStyle = resolveTheme(state.theme) === 'dark' ? '#e5f0f5' : '#193048';
           ctx.font = 'bold 11px "Segoe UI", "PingFang SC", sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'bottom';
@@ -13584,16 +14333,16 @@
               chart.bindingViewY[key] = { zoom: 1, offset: 0, baseMin: 0, baseMax };
               return;
             }
-            chart.bindingViewY[key].baseMin = 0;
+            if (!Number.isFinite(chart.bindingViewY[key].baseMin)) chart.bindingViewY[key].baseMin = 0;
             if (!Number.isFinite(chart.bindingViewY[key].baseMax)) chart.bindingViewY[key].baseMax = baseMax;
             if (!Number.isFinite(chart.bindingViewY[key].zoom)) chart.bindingViewY[key].zoom = 1;
-            chart.bindingViewY[key].offset = 0;
+            if (!Number.isFinite(chart.bindingViewY[key].offset)) chart.bindingViewY[key].offset = 0;
           });
         }
         const selectedAutoRange = yAxisBindingKey && yAxisBindingKey !== '__all__'
           ? (spectrumEntries.find((entry) => entry.key === yAxisBindingKey) || { ampMax: globalAmpMax })
           : { ampMax: globalAmpMax };
-        const manualBaseYMin = 0;
+        const manualBaseYMin = chart.alignScale ? (chart.viewBaseYMin ?? 0) : (controlsAllChannels ? 0 : (chart.bindingViewY?.[yAxisBindingKey]?.baseMin ?? 0));
         const manualBaseYMax = chart.alignScale
           ? (Number.isFinite(chart.viewBaseYMax) ? chart.viewBaseYMax : globalAmpMax)
           : (controlsAllChannels
@@ -13602,10 +14351,13 @@
         const yAxisTitle = !chart.alignScale && yAxisBindingKey
           ? `幅值（${yAxisBindingKey === '__all__' ? '全部通道' : getFieldDisplayLabel(yAxisBindingKey)}）`
           : '幅值';
-        const yRange = chart.viewMode === 'manual'
-          ? getAnchoredPositiveRange(
-              manualBaseYMax,
+        const yRange = chart.viewMode === 'manual' && controlsAllChannels
+          ? getCombinedChartYRange(chart, {min: manualBaseYMin, max: manualBaseYMax, range: manualBaseYMax - manualBaseYMin})
+          : chart.viewMode === 'manual'
+          ? getViewRange(
+              manualBaseYMin, manualBaseYMax,
               chart.alignScale ? chart.viewZoomY : (controlsAllChannels ? chart.viewZoomY : (chart.bindingViewY?.[yAxisBindingKey]?.zoom || 1)),
+              chart.alignScale ? chart.viewOffsetY : (chart.bindingViewY?.[yAxisBindingKey]?.offset || 0), null, null,
               1e-6,
               Number.POSITIVE_INFINITY
             )
@@ -13631,7 +14383,7 @@
           yRange,
           xClampMin: chart.viewMode === 'manual' ? manualBaseXMin : freqMin,
           xClampMax: chart.viewMode === 'manual' ? manualBaseXMax : autoFreqMax,
-          yClampMin: 0,
+          yClampMin: manualBaseYMin,
           yClampMax: chart.viewMode === 'manual' ? manualBaseYMax : globalAmpMax,
           xTitle: '频率',
           yTitle: yAxisTitle,
@@ -13644,7 +14396,7 @@
         if (xOuterMin <= 0 && xOuterMax >= 0) {
           const zeroX = ((0 - xOuterMin) / Math.max(1e-9, xOuterMax - xOuterMin)) * width;
           ctx.save();
-          ctx.strokeStyle = state.theme === 'dark' ? 'rgba(58, 204, 154, 0.9)' : 'rgba(14, 159, 110, 0.9)';
+          ctx.strokeStyle = resolveTheme(state.theme) === 'dark' ? 'rgba(58, 204, 154, 0.9)' : 'rgba(14, 159, 110, 0.9)';
           ctx.lineWidth = 1.5;
           ctx.beginPath();
           ctx.moveTo(zeroX, padding.top);
@@ -13652,7 +14404,7 @@
           ctx.stroke();
           ctx.restore();
         }
-        drawAxes(ctx, width, height, padding, xRange, yRange, '频率', chart.drawMeta.yTitle, xTicks, yTicks);
+        drawAxes(ctx, width, height, padding, xRange, yRange, '频率 (Hz)', chart.drawMeta.yTitle, xTicks, yTicks);
         spectrumEntries.forEach(({ index, spectrumSlice, ampMax }) => {
           if (!spectrumSlice.length) return;
           const activeYRange = chart.viewMode === 'manual'
@@ -13662,9 +14414,9 @@
                     const bindingState = chart.bindingViewY?.[keys[index]] || {};
                     const autoRange = chart.drawMeta.perKeyAutoRange?.[keys[index]] || { min: 0, max: ampMax, range: Math.max(1e-9, ampMax) };
                     const baseMax = Number.isFinite(bindingState.baseMax) ? bindingState.baseMax : autoRange.max;
-                    return getAnchoredPositiveRange(
-                      baseMax,
-                      bindingState.zoom || 1,
+                    return getViewRange(
+                      bindingState.baseMin ?? 0, baseMax,
+                      bindingState.zoom || 1, bindingState.offset || 0, null, null,
                       1e-6,
                       Number.POSITIVE_INFINITY
                     );
@@ -13713,7 +14465,8 @@
         const wrap = canvas.parentElement;
         const rect = wrap.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
-        const width = Math.max(300, Math.floor(rect.width));
+        if (!rect.width) return;
+        const width = Math.max(1, Math.floor(rect.width));
         const height = Math.max(140, Math.floor(rect.height));
         const pixelWidth = Math.max(1, Math.floor(width * dpr));
         const pixelHeight = Math.max(1, Math.floor(height * dpr));
@@ -13732,9 +14485,11 @@
         } else {
           drawFftChart(ctx, width, height, chart, seriesKeys);
         }
+        syncChartViewUi(chart);
       }
 
       function renderDirty() {
+        renderTransmitChecksumPreview();
         const dirty = state.ui.dirty;
         if (dirty.status) {
           updateSerialStatus();
@@ -13757,6 +14512,10 @@
           renderDerivedViews();
           dirty.derived = false;
         }
+        const result = document.getElementById('rx-checksum-result');
+        const checks = state.derivedRuntime.checksumResult;
+        result.textContent = state.parserMode !== 'binary' || !checks ? '' : checks.map(check => `${check.name} ${check.algorithm.toUpperCase()}：${check.ok ? '通过' : `失败，实际 ${check.actual} / 期望 ${check.expected}（本帧不更新解析值和图表）`}`).join('；');
+        result.dataset.status = checks?.some(check => !check.ok) ? 'error' : 'ok';
         if (dirty.monitor) {
           renderMonitor();
           dirty.monitor = false;
@@ -13863,6 +14622,7 @@
           chartFrameIntervalMs: 0,
           successfulFrames: [],
           fieldTypes: new Map(),
+          checksumResult: null,
           latestCards: [],
           textNameWindow: [],
           stableTextNames: new Set(),
@@ -13892,6 +14652,288 @@
             };
           })
         };
+      }
+
+      function getBinaryRowLength(row) {
+        if (row.kind === 'header' || row.kind === 'footer' || (row.kind === 'gap' && row.value)) {
+          return safeHexBytes(row.value).length;
+        }
+        if (row.kind === 'gap') {
+          const length = row.length ?? 1;
+          if (!Number.isSafeInteger(length) || length < 1 || length > SERIAL_BUFFER_SIZE) {
+            throw new Error('间隔长度必须为 1～65536 的整数');
+          }
+          return length;
+        }
+        return row.kind === 'checksum' ? checksumWidth(getReceiveChecksum(row)) : getBinaryTypeMeta(row.dataType).bytes;
+      }
+
+      function getBinarySchemaLayout(rows) {
+        let frameLength = 0;
+        const offsets = rows.map((row) => {
+          const offset = frameLength;
+          frameLength += getBinaryRowLength(row);
+          return offset;
+        });
+        if (!frameLength || frameLength > SERIAL_BUFFER_SIZE) throw new Error('整帧长度必须为 1～65536 bytes');
+        rows.forEach((row, index) => {
+          if (row.kind === 'checksum') validateProtocolChecksum(getReceiveChecksum(row), frameLength, offsets[index], true);
+        });
+        return { frameLength, offsets };
+      }
+
+      function renderBinaryFrameLayout() {
+        if (!refs.binaryFrameLayout) return;
+        renderBinaryFieldsValidation();
+        try {
+          const layout = getBinarySchemaLayout(state.parser.binarySchema);
+          refs.binaryFrameLayout.textContent = `固定整帧长度：${layout.frameLength} bytes · 字节偏移从 0 起算，包含帧头`;
+          refs.binarySchemaList.querySelectorAll('[data-binary-row-id]').forEach((element, index) => {
+            element.querySelector('[data-binary-offset]')?.remove();
+            const label = document.createElement('span');
+            label.dataset.binaryOffset = '';
+            label.className = 'panel-subtitle binary-offset';
+            label.textContent = `@${layout.offsets[index]}`;
+            element.querySelector('[data-binary-name]').insertAdjacentElement('afterend', label);
+          });
+        } catch (error) {
+          refs.binaryFrameLayout.textContent = error.message;
+        }
+      }
+
+      function validateDeviceConfig(payload) {
+        const fail = (path, message) => { throw new Error(`${path}：${message}`); };
+        const object = (value, keys, path) => {
+          if (!value || typeof value !== 'object' || Array.isArray(value)) fail(path, '必须为对象');
+          Object.keys(value).forEach(key => { if (!keys.includes(key)) fail(`${path}.${key}`, '不支持的配置项'); });
+        };
+        const string = (value, path) => { if (typeof value !== 'string') fail(path, '必须为文本'); };
+        const bool = (value, path) => { if (typeof value !== 'boolean') fail(path, '必须为 true 或 false'); };
+        const number = (value, path, min = -Infinity, max = Infinity) => {
+          if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) fail(path, '数值或范围无效');
+        };
+        const integer = (value, path, min, max) => {
+          number(value, path, min, max);
+          if (!Number.isSafeInteger(value)) fail(path, '必须为整数');
+        };
+        const choice = (value, choices, path) => { if (!choices.includes(value)) fail(path, '不支持的值'); };
+        const array = (value, path) => { if (!Array.isArray(value)) fail(path, '必须为数组'); };
+        const hex = (value, path) => {
+          string(value, path);
+          if (!/^[0-9a-f\s,]*$/i.test(value.replace(/0x/gi, ''))) fail(path, 'HEX 内容无效');
+          try { parseHexString(value); } catch (error) { fail(path, 'HEX 字节无效'); }
+        };
+        const legacy = payload?.type === 'SerialWebUserConfig';
+        object(payload, legacy ? ['type', 'version', 'exportedAt', 'exportedAtText', 'userConfig'] : ['type', 'version', 'name', 'config'], '文件');
+        if ((!legacy && payload.type !== 'PortScopeDeviceConfig') || payload.version !== 1) fail('文件', '不支持的文件类型或格式版本');
+        const config = JSON.parse(JSON.stringify(legacy ? payload.userConfig : payload.config));
+        object(config, ['appVersion', 'receiveContentSchemaVersion', 'savedAt', 'deviceName', 'manualConnectRequired', 'theme', 'layout', 'settings', 'parser', 'charts', 'modules', 'autoSend', 'conditionSend', 'presetSend', 'sendDraft'], 'config');
+        const name = legacy ? (config.deviceName || '导入的设备') : payload.name;
+        string(name, 'name');
+        if (!name.trim()) fail('name', '名称不能为空');
+        if (config.appVersion !== undefined) string(config.appVersion, 'appVersion');
+        if (config.savedAt !== undefined) number(config.savedAt, 'savedAt', 0);
+        if (config.deviceName !== undefined) string(config.deviceName, 'deviceName');
+        if (config.manualConnectRequired !== undefined) bool(config.manualConnectRequired, 'manualConnectRequired');
+        if (config.receiveContentSchemaVersion !== undefined) integer(config.receiveContentSchemaVersion, 'receiveContentSchemaVersion', 0, RECEIVE_CONTENT_SCHEMA_VERSION);
+        choice(config.theme, ['system', 'light', 'dark'], 'theme');
+        object(config.layout, ['expanded', 'sidebarCollapsed', 'parserResultsExpanded', 'sendExtensionHeight', 'componentColumns'], 'layout');
+        Object.entries(config.layout).forEach(([key, value]) => key === 'sendExtensionHeight' ? number(value, `layout.${key}`, 0) : key === 'componentColumns' ? integer(value, 'layout.componentColumns', 1, 3) : bool(value, `layout.${key}`));
+        const settings = config.settings;
+        const settingsKeys = ['baudRate', 'dataBits', 'stopBits', 'parity', 'releaseSignalsOnBlur', 'flowControl', 'signalDtr', 'signalRts', 'signalBreak', 'autoReconnect', 'rxDisplayMode', 'textEncoding', 'appendTimestamp', 'sendMode', 'newlineMode', 'appendNewline', 'txChecksum'];
+        object(settings, settingsKeys, 'settings');
+        string(settings.baudRate, 'settings.baudRate');
+        if (!/^\d+$/.test(settings.baudRate) || !Number.isSafeInteger(Number(settings.baudRate)) || Number(settings.baudRate) < 1) fail('settings.baudRate', '波特率无效');
+        const options = { dataBits: [7, 8], stopBits: [1, 2], parity: ['none', 'even', 'odd'], flowControl: ['none', 'hardware'], rxDisplayMode: ['text', 'hex'], textEncoding: ['utf-8', 'ascii', 'latin1', 'utf-16le'], sendMode: ['ascii', 'hex'], newlineMode: ['r', 'n', 'rn'] };
+        settingsKeys.filter(key => !['baudRate', 'txChecksum'].includes(key)).forEach(key => options[key] ? choice(settings[key], options[key], `settings.${key}`) : bool(settings[key], `settings.${key}`));
+        const validateChecksumObject = (value, path, receive = false) => {
+          object(value, receive ? ['enabled', 'algorithm', 'start', 'length', 'byteOrder', 'legacy'] : ['enabled', 'algorithm', 'start', 'length', 'offset', 'byteOrder'], path);
+          if (!receive && value.offset === undefined) fail(path, '缺少校验位置');
+          if (['enabled', 'algorithm', 'start', 'length', 'byteOrder'].some(key => value[key] === undefined)) fail(path, '校验配置不完整');
+          validateProtocolChecksum(receive ? { ...value, enabled: false } : value, null, receive ? 0 : value.offset, receive);
+        };
+        if (settings.txChecksum !== undefined) validateChecksumObject(settings.txChecksum, 'settings.txChecksum');
+        object(config.parser, ['mode', 'text', 'binary'], 'parser');
+        choice(config.parser.mode, ['text', 'binary'], 'parser.mode');
+        object(config.parser.text, ['rule'], 'parser.text');
+        string(config.parser.text.rule, 'parser.text.rule');
+        if (/[\r\n]/.test(config.parser.text.rule)) fail('parser.text.rule', '解析规则必须为单行');
+        const binary = config.parser.binary;
+        object(binary, ['rows', 'frameLength', 'fields'], 'parser.binary');
+        array(binary.rows, 'parser.binary.rows');
+        if (!binary.rows.length) fail('parser.binary.rows', '结构表不能为空');
+        const names = new Set();
+        binary.rows.forEach((row, index) => {
+          const path = `parser.binary.rows[${index}]`;
+          object(row, ['kind', 'value', 'dataType', 'name', 'nameAuto', 'length', 'offset', 'checksum'], path);
+          choice(row.kind, ['header', 'footer', 'gap', 'data', 'checksum'], `${path}.kind`);
+          if (row.checksum !== undefined) {
+            if (row.kind !== 'checksum') fail(path, '校验配置只能用于校验行');
+            validateChecksumObject(row.checksum, `${path}.checksum`, true);
+          }
+          string(row.value, `${path}.value`);
+          string(row.name, `${path}.name`);
+          if (row.nameAuto !== undefined) bool(row.nameAuto, `${path}.nameAuto`);
+          if (row.kind === 'data') {
+            choice(row.dataType, BINARY_DATA_TYPES.map(type => type.value), `${path}.dataType`);
+            if (!row.name.trim() || names.has(row.name)) fail(`${path}.name`, '字段名称为空或重复');
+            names.add(row.name);
+          }
+          if (['header', 'footer', 'gap'].includes(row.kind)) hex(row.value, `${path}.value`);
+          if (row.kind === 'gap') {
+            if (row.length === undefined) row.length = row.value ? safeHexBytes(row.value).length : 1;
+            integer(row.length, `${path}.length`, 1, SERIAL_BUFFER_SIZE);
+            if (row.value && row.length !== safeHexBytes(row.value).length) fail(path, '旧固定间隔的长度与 HEX 不一致');
+          }
+        });
+        if (binary.fields !== undefined) {
+          array(binary.fields, 'parser.binary.fields');
+          binary.fields.forEach((field, index) => object(field, ['name', 'offset', 'dataType', 'byteOrder'], `parser.binary.fields[${index}]`));
+        }
+        validateBinaryFields(binary.fields || [], binary.rows);
+        const layout = getBinarySchemaLayout(binary.rows);
+        if (binary.frameLength !== undefined && binary.frameLength !== layout.frameLength) fail('parser.binary.frameLength', '与结构表计算长度不一致');
+        binary.rows.forEach((row, index) => { if (row.offset !== undefined && row.offset !== layout.offsets[index]) fail(`parser.binary.rows[${index}].offset`, '与结构表偏移不一致'); });
+        binary.frameLength = layout.frameLength;
+        array(config.charts, 'charts');
+        const fieldKeys = new Set(['raw.rx.length', 'raw.rx.sum', 'raw.rx.byte0', 'raw.tx.length', 'raw.tx.sum', 'raw.tx.byte0', 'raw.any.length', 'raw.any.sum']);
+        binary.rows.forEach(row => {
+          if (row.kind === 'data' || row.kind === 'checksum') fieldKeys.add(`parsed.${row.name || 'checksum'}`);
+          if (row.dataType === 'bool8') for (let bit = 0; bit < 8; bit++) fieldKeys.add(`parsed.${row.name}.${bit}`);
+        });
+        (binary.fields || []).forEach(field => fieldKeys.add(`parsed.${field.name}`));
+        const numericFieldKeys = new Set(getConfiguredBinaryFields(binary.rows, binary.fields || []).filter(field => field.type === 'numeric').map(field => field.key));
+        config.charts.forEach((chart, index) => {
+          const path = `charts[${index}]`;
+          object(chart, ['chartType', 'title', 'panel', 'channels', 'fft', 'view', 'commands'], path);
+          choice(chart.chartType, ['time', 'fft', 'bar', 'numeric', 'command'], `${path}.chartType`);
+          if (chart.chartType === 'command') {
+            array(chart.commands, `${path}.commands`);
+            chart.commands.forEach((command, commandIndex) => {
+              const commandPath = `${path}.commands[${commandIndex}]`;
+              object(command, ['name', 'template', 'appendNewline', 'newlineMode', 'checksum', 'parameters'], commandPath);
+              validateChecksumObject(command.checksum, `${commandPath}.checksum`);
+              array(command.parameters, `${commandPath}.parameters`);
+              command.parameters.forEach((parameter, parameterIndex) => {
+                object(parameter, ['name', 'offset', 'dataType', 'byteOrder', 'defaultValue', 'min', 'max', 'options'], `${commandPath}.parameters[${parameterIndex}]`);
+              });
+              validateCommandDefinition(command);
+            });
+          } else if (chart.commands !== undefined) fail(path, '指令只能用于指令框');
+          string(chart.title, `${path}.title`);
+          object(chart.panel, ['configOpen', 'heightPx'], `${path}.panel`);
+          bool(chart.panel.configOpen, `${path}.panel.configOpen`);
+          number(chart.panel.heightPx, `${path}.panel.heightPx`, 140);
+          object(chart.channels, ['bindings', 'unifyScale', 'selectedYAxisBinding'], `${path}.channels`);
+          array(chart.channels.bindings, `${path}.channels.bindings`);
+          chart.channels.bindings.forEach(key => {
+            string(key, `${path}.channels.bindings`);
+            if (chart.chartType === 'numeric' && !numericFieldKeys.has(key)) fail(path, `数值字段不存在：${key}`);
+            if (!key.startsWith('parsed.') && !fieldKeys.has(key)) fail(path, '字段绑定无效');
+            if (config.parser.mode === 'binary' && !fieldKeys.has(key)) fail(path, `字段不存在：${key}`);
+          });
+          bool(chart.channels.unifyScale, `${path}.channels.unifyScale`);
+          string(chart.channels.selectedYAxisBinding, `${path}.channels.selectedYAxisBinding`);
+          if (chart.channels.selectedYAxisBinding && chart.channels.selectedYAxisBinding !== '__all__' && !chart.channels.bindings.includes(chart.channels.selectedYAxisBinding)) fail(path, '纵轴字段未绑定');
+          object(chart.fft, ['windowSize', 'frameIntervalMs'], `${path}.fft`);
+          integer(chart.fft.windowSize, `${path}.fft.windowSize`, 2, 65536);
+          if (chart.fft.frameIntervalMs !== '') number(Number(chart.fft.frameIntervalMs), `${path}.fft.frameIntervalMs`, Number.MIN_VALUE);
+          object(chart.view, ['mode', 'zoomX', 'zoomY', 'offsetX', 'offsetY', 'followLatestX', 'baseXMin', 'baseXMax', 'baseYMin', 'baseYMax', 'perChannelY'], `${path}.view`);
+          choice(chart.view.mode, ['auto', 'manual'], `${path}.view.mode`);
+          bool(chart.view.followLatestX, `${path}.view.followLatestX`);
+          ['zoomX', 'zoomY'].forEach(key => number(chart.view[key], `${path}.view.${key}`, Number.MIN_VALUE));
+          ['offsetX', 'offsetY'].forEach(key => number(chart.view[key], `${path}.view.${key}`));
+          ['baseXMin', 'baseXMax', 'baseYMin', 'baseYMax'].forEach(key => { if (chart.view[key] !== null) number(chart.view[key], `${path}.view.${key}`); });
+          const validateViewRange = (min, max, rangePath) => {
+            if (min !== null && max !== null && (!Number.isFinite(max - min) || max - min < 1e-9)) fail(rangePath, '坐标范围无效，跨度必须是至少 1e-9 的有限数值');
+          };
+          ['X', 'Y'].forEach(axis => validateViewRange(chart.view[`base${axis}Min`], chart.view[`base${axis}Max`], `${path}.view`));
+          const perChannel = chart.view.perChannelY;
+          object(perChannel, chart.channels.bindings, `${path}.view.perChannelY`);
+          Object.values(perChannel).forEach(value => {
+            object(value, ['zoom', 'offset', 'baseMin', 'baseMax'], `${path}.view.perChannelY`);
+            Object.entries(value).forEach(([key, numberValue]) => { if (numberValue !== null || !['baseMin', 'baseMax'].includes(key)) number(numberValue, `${path}.view.perChannelY.${key}`, key === 'zoom' ? Number.MIN_VALUE : -Infinity); });
+            validateViewRange(value.baseMin, value.baseMax, `${path}.view.perChannelY`);
+          });
+        });
+        object(config.modules, ['autoSendOpen', 'conditionSendOpen', 'presetSendOpen'], 'modules');
+        Object.entries(config.modules).forEach(([key, value]) => bool(value, `modules.${key}`));
+        const groups = {
+          autoSend: { array: 'queue', fields: ['enabled', 'payload', 'payloadRawHex'] },
+          conditionSend: { array: 'rules', fields: ['enabled', 'pattern', 'patternRawHex', 'response', 'responseRawHex'] },
+          presetSend: { array: 'items', fields: ['enabled', 'payload', 'payloadRawHex', 'expected', 'expectedRawHex', 'description', 'shortcut'] }
+        };
+        Object.entries(groups).forEach(([key, group]) => {
+          const section = config[key];
+          object(section, [group.array, 'enabled', ...(key === 'autoSend' ? ['intervalMs'] : [])], key);
+          if (section.enabled !== undefined) bool(section.enabled, `${key}.enabled`);
+          if (key === 'autoSend') integer(section.intervalMs, 'autoSend.intervalMs', 100, 2147483647);
+          array(section[group.array], `${key}.${group.array}`);
+          section[group.array].forEach((item, index) => {
+            const path = `${key}.${group.array}[${index}]`;
+            object(item, group.fields, path);
+            Object.entries(item).forEach(([field, value]) => field === 'enabled' ? bool(value, `${path}.${field}`) : field.endsWith('RawHex') ? hex(value, `${path}.${field}`) : string(value, `${path}.${field}`));
+          });
+          section.enabled = false;
+        });
+        object(config.sendDraft, ['text', 'hex'], 'sendDraft');
+        string(config.sendDraft.text, 'sendDraft.text');
+        hex(config.sendDraft.hex, 'sendDraft.hex');
+        config.deviceName = name.trim();
+        config.manualConnectRequired = true;
+        return config;
+      }
+
+      function buildDeviceConfigPayload() {
+        captureBinarySchemaInputsFromRefs();
+        const config = buildLocalPrefsSnapshot();
+        const layout = getBinarySchemaLayout(config.parser.binary.rows);
+        config.parser.binary.frameLength = layout.frameLength;
+        config.parser.binary.rows.forEach((row, index) => { row.offset = layout.offsets[index]; });
+        delete config.manualConnectRequired;
+        ['autoSend', 'conditionSend', 'presetSend'].forEach(key => { delete config[key].enabled; });
+        const payload = { type: 'PortScopeDeviceConfig', version: 1, name: state.deviceName, config };
+        validateDeviceConfig(payload);
+        return payload;
+      }
+
+      function saveDeviceConfig() {
+        try {
+          const payload = buildDeviceConfigPayload();
+          const filename = payload.name.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
+          downloadFile(`${filename}.json`, new Blob([JSON.stringify(payload, null, 2) + '\n'], { type: 'application/json;charset=utf-8' }));
+          toast('设备配置已导出', 'JSON 包含当前规则和布局，不包含日志与运行状态。', 'success');
+        } catch (error) {
+          toast('保存失败', error.message, 'error');
+        }
+      }
+
+      async function openDeviceConfigText(text) {
+        const config = validateDeviceConfig(JSON.parse(text.replace(/^\uFEFF/, '')));
+        if (state.ui.deviceConfigImporting) throw new Error('正在打开设备配置，请稍后重试');
+        state.ui.deviceConfigImporting = true;
+        state.serial.requireManualConnect = true;
+        try {
+          state.autoSend.enabled = false;
+          state.conditionSend.enabled = false;
+          state.presetSend.enabled = false;
+          stopAutoSendTimer();
+          clearPresetExpectations();
+          clearSerialReconfigureTimer();
+          resetReconnectState();
+          if (state.serial.connectTask) await state.serial.connectTask.catch(() => {});
+          if (state.serial.reconfigureTask) await state.serial.reconfigureTask.catch(() => {});
+          if (state.recording.active) archiveCurrentRecording();
+          state.playback.playing = false;
+          if (playerFrame) { cancelAnimationFrame(playerFrame); playerFrame = null; }
+          await disconnectSerial('manual', { awaitCleanup: true });
+          resetSerialRuntimeStateForDefaults();
+          state.activeTimelineId = 'realtime';
+          applyUserConfigSnapshot(config, { reconfigureSerial: false });
+          toast('设备配置已打开', '连接和发送任务已停止，请手动连接设备。', 'success');
+        } finally {
+          state.ui.deviceConfigImporting = false;
+        }
       }
 
       function buildUserConfigExportPayload() {
@@ -14254,6 +15296,7 @@
         refs.textParseRule.value = state.parser.textRule;
         ensureBinarySchemaRow();
         renderBinarySchemaTable();
+        renderBinaryFields();
         updateParserModeUI();
         renderTextRuleOverlay();
       }
@@ -14265,7 +15308,9 @@
           value: row?.value || '',
           dataType: row?.dataType || 'int8',
           name: row?.name || (row?.kind === 'checksum' ? 'checksum' : ''),
-          nameAuto: row?.kind === 'checksum' ? true : Boolean(row?.nameAuto)
+          nameAuto: row?.kind === 'checksum' ? true : Boolean(row?.nameAuto),
+          ...(row?.checksum ? { checksum: { ...row.checksum } } : {}),
+          length: row?.length ?? (row?.kind === 'gap' && row?.value ? safeHexBytes(row.value).length : 1)
         };
       }
 
@@ -14276,12 +15321,15 @@
             rule: normalizeTextRule(state.parser.textRule || '')
           },
           binary: {
+            fields: snapshotBinaryFields(),
             rows: (state.parser.binarySchema || []).map((row) => ({
               kind: row.kind,
               value: row.value,
               dataType: row.dataType,
               name: row.name,
-              nameAuto: Boolean(row.nameAuto)
+              nameAuto: Boolean(row.nameAuto),
+              ...(row.kind === 'gap' ? { length: row.length ?? (row.value ? safeHexBytes(row.value).length : 1) } : {}),
+              ...(row.checksum ? { checksum: { ...row.checksum } } : {})
             }))
           }
         };
@@ -14290,6 +15338,7 @@
       function snapshotChartConfig(chart) {
         return {
           chartType: chart.type,
+          ...(chart.type === 'command' ? { commands: chart.commands.map(snapshotCommand) } : {}),
           title: chart.name,
           panel: {
             configOpen: Boolean(chart.open),
@@ -14321,10 +15370,11 @@
       }
 
       function hydrateChartFromConfig(rawChart) {
-        const nextType = rawChart?.chartType === 'fft' ? 'fft' : rawChart?.chartType === 'bar' ? 'bar' : 'time';
+        const nextType = ['time', 'fft', 'bar', 'numeric', 'command'].includes(rawChart?.chartType) ? rawChart.chartType : 'time';
         const base = createChart(nextType);
         base.id = uid('chart');
         base.type = nextType;
+        if (nextType === 'command') base.commands = rawChart.commands.map(hydrateCommand);
         base.name = String(rawChart?.title || base.name);
         base.open = Boolean(rawChart?.panel?.configOpen);
         base.heightPx = Math.max(140, Number(rawChart?.panel?.heightPx) || base.heightPx || 220);
@@ -14362,6 +15412,7 @@
       function normalizePersistedSettings(settings) {
         const source = settings && typeof settings === 'object' ? settings : {};
         return {
+          txChecksum: normalizeProtocolChecksum(source.txChecksum),
           baudRate: String(source.baudRate || state.settings.baudRate),
           dataBits: [7, 8].includes(Number(source.dataBits)) ? Number(source.dataBits) : state.settings.dataBits,
           stopBits: [1, 2].includes(Number(source.stopBits)) ? Number(source.stopBits) : state.settings.stopBits,
@@ -14389,10 +15440,13 @@
           state.layoutExpanded = Boolean(snapshot.layout?.expanded);
           state.ui.sidebarCollapsed = Boolean(snapshot.layout?.sidebarCollapsed);
           state.ui.parserResultsExpanded = Boolean(snapshot.layout?.parserResultsExpanded);
+          state.ui.componentColumns = [1, 2, 3].includes(snapshot.layout?.componentColumns) ? snapshot.layout.componentColumns : 1;
           const savedSendExtensionHeight = Number(snapshot.layout?.sendExtensionHeight);
           state.ui.sendExtensionHeightOverride = Number.isFinite(savedSendExtensionHeight) && savedSendExtensionHeight > 0
             ? savedSendExtensionHeight
             : 0;
+          state.deviceName = String(snapshot.deviceName || state.deviceName);
+          if (typeof snapshot.manualConnectRequired === 'boolean') state.serial.requireManualConnect = snapshot.manualConnectRequired;
           state.settings = normalizePersistedSettings(snapshot.settings);
 
           if (snapshot.parser || Array.isArray(snapshot.charts)) {
@@ -14462,6 +15516,8 @@
       }
 
       function syncUserConfigControls() {
+        renderTransmitChecksumControls();
+        refs.deviceConfigName.value = state.deviceName;
         if (refs.baudRate) refs.baudRate.value = state.settings.baudRate;
         if (refs.dataBits) refs.dataBits.value = String(state.settings.dataBits);
         if (refs.stopBits) refs.stopBits.value = String(state.settings.stopBits);
@@ -14501,8 +15557,9 @@
         stopAutoSendTimer();
         clearPresetExpectations();
         applyLocalPrefsSnapshot(snapshot);
-        syncUserConfigControls();
         invalidateDerivedCaches();
+        deriveData();
+        syncUserConfigControls();
         scheduleRefresh();
         if (reconfigureSerial) {
           scheduleSerialOpenOptionsApply('serial-options-apply', { immediate: true });
@@ -14543,6 +15600,7 @@
             expanded: false,
             sidebarCollapsed: false,
             parserResultsExpanded: false,
+            componentColumns: 1,
             sendExtensionHeight: 0
           },
           settings: {
@@ -14603,13 +15661,16 @@
           receiveContentSchemaVersion: RECEIVE_CONTENT_SCHEMA_VERSION,
           savedAt: Date.now(),
           theme: state.theme,
+          deviceName: state.deviceName,
+          manualConnectRequired: state.serial.requireManualConnect,
           layout: {
             expanded: Boolean(state.layoutExpanded),
             sidebarCollapsed: Boolean(state.ui.sidebarCollapsed),
             parserResultsExpanded: Boolean(state.ui.parserResultsExpanded),
+            componentColumns: state.ui.componentColumns,
             sendExtensionHeight: Math.max(0, Math.round(Number(state.ui.sendExtensionHeightOverride) || 0))
           },
-          settings: { ...state.settings },
+          settings: { ...state.settings, ...(state.settings.txChecksum ? { txChecksum: { ...state.settings.txChecksum } } : {}) },
           parser: snapshotParserGraphState(),
           charts: (state.charts || []).map((chart) => snapshotChartConfig(chart)),
           modules: {
@@ -15060,7 +16121,6 @@
         const meta = drag.meta;
         const dx = nextClientX - drag.startClientX;
         const dy = nextClientY - drag.startClientY;
-        const isFft = chart.type === 'fft';
         if (drag.zone === 'resize-top' || drag.zone === 'resize-bottom') {
           const delta = drag.zone === 'resize-top' ? -dy : dy;
           chart.heightPx = Math.max(140, (drag.startHeight || chart.heightPx || 220) + delta);
@@ -15084,7 +16144,7 @@
           const xBaseRange = Math.max(1e-9, drag.baseXMax - drag.baseXMin);
           const nextXCenter = drag.startXCenter - xDataShift;
           chart.viewOffsetX = (nextXCenter - ((drag.baseXMin + drag.baseXMax) * 0.5)) / xBaseRange;
-          if (!isFft) {
+          {
             const yBaseRange = Math.max(1e-9, drag.baseYMax - drag.baseYMin);
             const nextYCenter = drag.startYCenter + yDataShift;
             if (controlsAllChannels) {
@@ -15110,14 +16170,11 @@
             (chart.bindings || []).forEach((key) => {
               const bindingState = chart.bindingViewY?.[key] || (chart.bindingViewY[key] = { zoom: 1, offset: 0, baseMin: drag.baseYMin, baseMax: drag.baseYMax });
               bindingState.zoom = Math.max(1e-6, (drag.startBindingViewY?.[key]?.zoom || 1) * Math.exp(-dy / 160));
-              if (isFft) bindingState.offset = 0;
             });
           } else if (yBindingState) {
             yBindingState.zoom = Math.max(1e-6, drag.startZoomY * Math.exp(-dy / 160));
-            if (isFft) yBindingState.offset = 0;
           } else {
             chart.viewZoomY = Math.max(1e-6, drag.startZoomY * Math.exp(-dy / 160));
-            if (isFft) chart.viewOffsetY = 0;
           }
         }
         syncChartViewUi(chart);
@@ -15135,8 +16192,12 @@
           state.ui.chartPickerOpenId = '';
           syncChartViewUi(chart);
         }
-        const selectedBindingAutoRange = !chart.alignScale && info.meta.yBindingKey && info.meta.yBindingKey !== '__all__'
-          ? (info.meta.perKeyAutoRange?.[info.meta.yBindingKey] || null)
+        if (!info.presetZone) setChartManualView(chart);
+        const selectedBindingView = !chart.alignScale && info.meta.yBindingKey && info.meta.yBindingKey !== '__all__'
+          ? chart.bindingViewY[info.meta.yBindingKey]
+          : null;
+        const selectedBindingAutoRange = selectedBindingView
+          ? {min: selectedBindingView.baseMin, max: selectedBindingView.baseMax}
           : null;
         state.ui.chartDrag = {
           chartId: chart.id,
@@ -15158,9 +16219,7 @@
           startHeight: Math.max(140, Number(chart.heightPx) || info.rect.height || 220),
           baseXMin: info.meta.xClampMin,
           baseXMax: info.meta.xClampMax,
-          baseYMin: chart.type === 'fft'
-            ? 0
-            : (selectedBindingAutoRange
+          baseYMin: (selectedBindingAutoRange
             ? selectedBindingAutoRange.min
             : (info.meta.controlsAllChannels
             ? (Number.isFinite(info.meta.yRange?.min) ? info.meta.yRange.min : info.meta.yClampMin)
@@ -15221,7 +16280,6 @@
         if (!info) return;
         event.preventDefault();
         const chart = info.chart;
-        const isFft = chart.type === 'fft';
         if (state.ui.chartPickerOpenId === chart.id) {
           state.ui.chartPickerOpenId = '';
           syncChartViewUi(chart);
@@ -15243,14 +16301,11 @@
             (chart.bindings || []).forEach((key) => {
               const bindingState = chart.bindingViewY?.[key] || (chart.bindingViewY[key] = { zoom: 1, offset: 0, baseMin: info.meta.yClampMin, baseMax: info.meta.yClampMax });
               bindingState.zoom = Math.max(1e-6, (bindingState.zoom || 1) * factor);
-              if (isFft) bindingState.offset = 0;
             });
           } else if (yBindingState) {
             yBindingState.zoom = Math.max(1e-6, (yBindingState.zoom || 1) * factor);
-            if (isFft) yBindingState.offset = 0;
           } else {
             chart.viewZoomY = Math.max(1e-6, chart.viewZoomY * factor);
-            if (isFft) chart.viewOffsetY = 0;
           }
         }
         syncChartViewUi(chart);
@@ -15261,6 +16316,7 @@
       function handleChartClick(event) {
         const chart = findChartFromEvent(event.target);
         if (!chart) return;
+        if (chart.type === 'command' && handleCommandClick(event, chart)) return;
         const bindingOption = event.target.closest('[data-chart-y-binding-option]');
         if (bindingOption) {
           chart.yAxisBindingKey = bindingOption.dataset.chartYBindingOption || '';
@@ -15269,6 +16325,12 @@
           syncChartViewUi(chart);
           drawChart(chart);
           return;
+        }
+        const zoomButton = event.target.closest('[data-chart-zoom]');
+        if (zoomButton) { const [axis, factor] = zoomButton.dataset.chartZoom.split(':'); changeChartAxisZoom(chart, axis, Number(factor)); return; }
+        if (event.target.closest('[data-chart-range-apply]')) {
+          const panel = event.target.closest('[data-chart-id]');
+          applyChartRangeInputs(chart, panel); return;
         }
         if (event.target.closest('[data-chart-view-chip]')) {
           if (canOpenChartViewPicker(chart)) {
@@ -15322,6 +16384,19 @@
       function handleChartInput(event) {
         const chart = findChartFromEvent(event.target);
         if (!chart) return;
+        if (chart.type === 'command') { handleCommandInput(event, chart); return; }
+        if (chart.type === 'numeric') {
+          if (event.target.hasAttribute('data-numeric-title')) {
+            chart.name = event.target.value;
+            scheduleRefresh({ charts: true });
+          }
+          if (event.type === 'change' && event.target.hasAttribute('data-numeric-binding')) {
+            const key = event.target.dataset.numericBinding;
+            chart.bindings = event.target.checked ? [...new Set([...chart.bindings, key])] : chart.bindings.filter(binding => binding !== key);
+            scheduleRefresh({ charts: true });
+          }
+          return;
+        }
         if (
           event.type === 'input'
           && (
@@ -15331,6 +16406,7 @@
         ) {
           return;
         }
+        if (event.target.hasAttribute('data-chart-range')) { event.target.dataset.edited = 'true'; return; }
         let needsRebuild = false;
         if (event.target.hasAttribute('data-chart-title')) chart.name = event.target.value;
         if (event.target.hasAttribute('data-chart-binding')) {
@@ -15531,6 +16607,26 @@
       }
 
       function attachEventListeners() {
+        ['save-device-config-btn', 'save-device-config-menu'].forEach(id => {
+          document.getElementById(id).addEventListener('click', saveDeviceConfig);
+        });
+        ['open-device-config-btn', 'open-device-config-menu'].forEach(id => {
+          document.getElementById(id).addEventListener('click', () => {
+            refs.deviceConfigFileInput.value = '';
+            refs.deviceConfigFileInput.click();
+          });
+        });
+        refs.deviceConfigName.addEventListener('input', () => {
+          state.deviceName = refs.deviceConfigName.value;
+          scheduleLocalPrefsSave();
+        });
+        refs.deviceConfigFileInput.addEventListener('change', async () => {
+          const file = refs.deviceConfigFileInput.files[0];
+          if (!file) return;
+          try { await openDeviceConfigText(await file.text()); }
+          catch (error) { toast('打开失败', error.message || '设备配置无效。', 'error'); }
+          finally { refs.deviceConfigFileInput.value = ''; }
+        });
         refs.themeOpts.forEach(function(opt) {
           opt.addEventListener('click', function() {
             handleThemeChange(opt.dataset.theme);
@@ -15909,7 +17005,10 @@
           if (!rowEl) return;
           const row = state.parser.binarySchema.find((entry) => entry.id === rowEl.dataset.binaryRowId);
           if (!row) return;
-          if (event.target.matches('[data-binary-value]')) {
+          if (event.target.matches('[data-binary-length]')) {
+            row.length = Number(event.target.value);
+            renderBinaryFrameLayout();
+          } else if (event.target.matches('[data-binary-value]')) {
             row.value = event.target.value;
           } else if (event.target.matches('[data-binary-name]')) {
             row.name = event.target.value;
@@ -15924,6 +17023,7 @@
           if (!row) return;
           if (event.target.matches('[data-binary-kind]')) {
             row.kind = event.target.value;
+            if (row.kind === 'gap') { row.value = ''; row.length = 1; }
             if (row.kind === 'checksum') {
               row.name = 'checksum';
               row.nameAuto = true;
@@ -15992,6 +17092,53 @@
           scheduleLocalPrefsSave();
         });
 
+        refs.componentColumns.addEventListener('change', () => {
+          state.ui.componentColumns = Number(refs.componentColumns.value);
+          scheduleRefresh({ charts: true });
+          scheduleLocalPrefsSave();
+        });
+        let chartLayoutWidth = 0;
+        const chartLayoutObserver = new ResizeObserver(([entry]) => {
+          if (entry.contentRect.width === chartLayoutWidth) return;
+          chartLayoutWidth = entry.contentRect.width;
+          scheduleRefresh({ charts: true });
+        });
+        chartLayoutObserver.observe(refs.chartList);
+
+        document.getElementById('add-command-panel-btn').addEventListener('click', (event) => {
+          event.stopPropagation(); closeMenus(event);
+          const panel = createChart('command'); panel.open = true;
+          state.charts.push(panel); renderCharts(true); scheduleLocalPrefsSave();
+        });
+        document.getElementById('add-numeric-panel-btn').addEventListener('click', (event) => {
+          event.stopPropagation();
+          closeMenus(event);
+          const panel = createChart('numeric');
+          panel.open = true;
+          state.charts.push(panel);
+          renderCharts(true);
+          scheduleLocalPrefsSave();
+        });
+        document.getElementById('add-binary-field-btn').addEventListener('click', () => {
+          const names = new Set(getConfiguredBinaryFields(state.parser.binarySchema).map(field => field.key));
+          let index = 1;
+          while (names.has(`parsed.field${index}`)) index++;
+          state.parser.binaryFields.push({ id: uid('schema'), name: `field${index}`, offset: 0, dataType: 'uint8', byteOrder: 'le' });
+          renderBinaryFields();
+          scheduleBinarySchemaReparse();
+          scheduleLocalPrefsSave();
+        });
+        const fieldsList = document.getElementById('binary-fields-list');
+        fieldsList.addEventListener('input', updateBinaryField);
+        fieldsList.addEventListener('change', updateBinaryField);
+        fieldsList.addEventListener('click', event => {
+          if (!event.target.closest('[data-remove-binary-field]')) return;
+          const id = event.target.closest('[data-binary-field-id]').dataset.binaryFieldId;
+          state.parser.binaryFields = state.parser.binaryFields.filter(field => field.id !== id);
+          renderBinaryFields();
+          scheduleBinarySchemaReparse();
+          scheduleLocalPrefsSave();
+        });
         refs.addTimeChartBtn.addEventListener('click', () => {
           state.charts.push(createChart('time'));
           renderCharts(true);
@@ -16099,6 +17246,7 @@
         });
         refs.sendInput.addEventListener('input', () => {
           normalizeSendInputValue();
+          scheduleRefresh();
         });
 
         refs.toggleAutoSendBtn.addEventListener('click', () => {
@@ -16239,6 +17387,7 @@
           state.presetSend.items.push({ id: uid('queue'), enabled: true, payload: getDefaultSendContent('PING'), expected: getDefaultReceiveContent('PONG'), description: '' });
         }
         state.ui.windowFocused = document.visibilityState === 'visible' && document.hasFocus();
+        refs.deviceConfigName.value = state.deviceName;
         syncVersionDisplay();
         syncUserConfigMenuUi();
         applyTheme();
@@ -16277,6 +17426,9 @@
 
       initializeDefaults();
       attachEventListeners();
+      renderTransmitChecksumControls();
+      document.getElementById('tx-checksum-controls').addEventListener('change', updateChecksumControl);
+      refs.binarySchemaList.addEventListener('change', updateChecksumControl);
       tryInitialSerialConnectPrompt();
     })();
   </script>

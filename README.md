@@ -1,8 +1,8 @@
 # 澄波 PortScope 串口数据工作台
 
-当前二次开发版本：**2.2.0（2026-11-16）**。基于电导实验室（Conductance-lab）的 SerialWeb 2.1，重新设计产品名称、标识、界面和关于页，并移除界面推广及外部入口。原始 `LICENSE` 和源码版权声明保留，继续采用 AGPL-3.0，详细变更见 [MODIFICATIONS.md](MODIFICATIONS.md)。
+当前二次开发版本：**2.3.0（2026-11-17）**。基于电导实验室（Conductance-lab）的 SerialWeb 2.1，重新设计产品名称、标识、界面和关于页，并移除界面推广及外部入口。原始 `LICENSE` 和源码版权声明保留，继续采用 AGPL-3.0，详细变更见 [MODIFICATIONS.md](MODIFICATIONS.md)。
 
-直接打开 `index.html` 使用，推荐 Chrome / Edge。`index.html` 同时包含完整可读应用源码，无编译依赖。新版发布目录为 `release/PortScope-v2.2.0-20261116/`；请整体分发该目录，包含 HTML、许可证、说明及修改记录。
+直接打开 `index.html` 使用，推荐 Chrome / Edge。`index.html` 同时包含完整可读应用源码，无编译依赖。新版发布目录为 `release/PortScope-v2.3.0-20261117/`，另附同名 ZIP 及 SHA256 校验文件；请整体分发该目录，包含 HTML、许可证、说明、修改记录及实机验收记录。
 
 以下为保留的原项目使用说明与出处资料；其中原在线站点指向上游 SerialWeb，不是本修改版本。
 
@@ -135,6 +135,10 @@ flowchart LR
 二进制结构表的间隔区域现在可填写跳过的 **n bytes**（正整数，单行及整帧最多 65536 bytes）。每行显示从 0 起算的字节偏移，整帧长度由各行实际长度自动计算，包含帧头、数据、间隔、校验和帧尾。新建间隔区域只跳过字节；旧配置已有的固定 HEX 匹配保持原行为。
 
 新文件格式标识为 `PortScopeDeviceConfig`、版本 `1`；也支持打开原 `SerialWebUserConfig` 版本 `1` 的完整配置。独立协议、指令和布局不另设文件格式。收发校验、全局组件列数、固定偏移字段、数值框、参数化指令框及波形显示范围已接入同一设备 JSON。
+
+整套恢复验证入口：`python tools/test-device-workbench.py`（Windows Chrome、Python `websockets`）。联合覆盖五类组件、串口参数、接收帧与字段、独立发送模板／校验、手动视图、实际文件保存／打开以及本地偏好恢复。无效范围（含单通道反向范围及跨度溢出）在断开当前串口前拒绝；有效打开不恢复临时指令输入或发送结果。测试结果及截图保存在 `artifacts/`，串口收发使用模拟 writer 和构造报文，未代表实体设备验收。
+
+2026-11-17 已完成该开发版本的 [ESP32-P4 实机验收](docs/validation/ESP32-P4-20261117.md)：Windows Chrome 原生 Web Serial，COM29／9600 baud／8N1，113 项检查通过，原固件已恢复并通过整片 32 MB 校验。验收专用固件及报文不等同于开发板原固件协议；详情及范围见记录。
 
 ### 参数化指令框（开发版本）
 

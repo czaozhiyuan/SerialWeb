@@ -19,6 +19,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>澄波 PortScope · 串口数据工作台</title>
   <!-- Modified 2026-11-16: PortScope 2.2.0 derivative; UI branding, visual design, and external promotional links changed. Original attribution and AGPL-3.0 license retained. -->
+  <!-- Modified 2026-11-17: PortScope 2.3.0 adds device JSON profiles, protocol checksums, fixed-offset fields, numeric and command panels, equal-column layouts, and waveform controls. -->
   <script>
     (() => {
       const LOCAL_PREFS_KEY = 'serialweb:prefs';
@@ -5767,7 +5768,7 @@
             <button id="system-menu-btn" class="icon-btn" title="工作台设置" aria-label="工作台设置">&#9776;</button>
             <div id="system-menu" class="floating-menu">
               <button id="version-info-btn" class="menu-static-line version-info-btn" type="button">
-                <span id="runtime-mode-label" class="runtime-mode-label">关于澄波 v2.2.0</span>
+                <span id="runtime-mode-label" class="runtime-mode-label">关于澄波 v2.3.0</span>
                 <span id="online-mode-chip" class="online-mode-chip">串口工作台</span>
               </button>
               <div class="menu-theme-line">
@@ -6213,7 +6214,7 @@
     <section class="version-modal" role="dialog" aria-modal="true" aria-labelledby="version-modal-title">
       <div class="version-modal-head">
         <div>
-          <div id="version-modal-title" class="version-modal-title">澄波 PortScope v2.2.0</div>
+          <div id="version-modal-title" class="version-modal-title">澄波 PortScope v2.3.0</div>
           <div class="version-modal-subtitle">连接设备 · 观察数据 · 解析信号</div>
         </div>
         <button id="version-modal-close" class="version-modal-close" type="button" aria-label="关闭版本信息">
@@ -6238,13 +6239,20 @@
           </div>
         </section>
         <div class="version-info-grid">
-          <div class="version-info-cell"><strong>当前版本</strong><span id="version-current-label">v2.2.0</span></div>
+          <div class="version-info-cell"><strong>当前版本</strong><span id="version-current-label">v2.3.0</span></div>
           <div class="version-info-cell"><strong>工作流程</strong><span>连接 → 监视 → 解析 → 导出</span></div>
           <div class="version-info-cell"><strong>数据处理</strong><span>串口数据在浏览器本地处理</span></div>
           <div class="version-info-cell"><strong>开源许可</strong><span>AGPL-3.0 · 随附 LICENSE</span></div>
         </div>
         <div class="version-changelog">
           <div class="version-changelog-title">二次开发记录</div>
+          <div class="version-release"><strong>PortScope 2.3.0 · 2026-11-17</strong><ul>
+            <li>统一设备 JSON 保存／打开，支持固定帧结构、n 字节间隔和命名偏移字段。</li>
+            <li>新增数值框、参数化指令框和用户选择的 1／2／3 列等宽布局。</li>
+            <li>收发共享 SUM8、XOR8、LRC8、CRC-16/MODBUS；指令组帧后预览并发送。</li>
+            <li>新增虚线网格、独立横纵轴缩放、手动范围与实时跟随恢复。</li>
+            <li>ESP32-P4 原生 Web Serial 实机 113 项检查通过，原固件已恢复。</li>
+          </ul></div>
           <div class="version-release"><strong>PortScope 2.2.0 · 2026-11-16</strong><ul>
             <li>启用「澄波 PortScope」名称、波形标识与青绿 / 石墨工作台界面。</li>
             <li>移除原推广、外部站点和反馈入口，取消页面访问统计。</li>
@@ -6259,7 +6267,7 @@
 
   <script>
     (() => {
-      const VERSION = '2.2.0';
+      const VERSION = '2.3.0';
       const VERSION_MODAL_SEEN_KEY = 'serialweb:version-modal-seen';
       const MAX_DERIVED_LOG_LINES = 320;
       const SERIAL_BUFFER_SIZE = 65536;
@@ -13762,7 +13770,7 @@
 
       function drawGrid(ctx, left, top, plotW, plotH, xRange, yRange, xTicks, yTicks) {
         ctx.save();
-        ctx.strokeStyle = state.theme === 'dark' ? 'rgba(143,168,184,0.23)' : 'rgba(25,48,72,0.15)';
+        ctx.strokeStyle = resolveTheme(state.theme) === 'dark' ? 'rgba(143,168,184,0.23)' : 'rgba(25,48,72,0.15)';
         ctx.setLineDash([4, 4]);
         ctx.lineWidth = 1;
         yTicks.forEach((tick) => {
@@ -13790,8 +13798,8 @@
         const right = left + plotW;
         const bottom = top + plotH;
         ctx.save();
-        ctx.strokeStyle = state.theme === 'dark' ? 'rgba(210,228,236,0.22)' : 'rgba(25,48,72,0.16)';
-        ctx.fillStyle = state.theme === 'dark' ? 'rgba(220,235,242,0.72)' : 'rgba(18,36,54,0.66)';
+        ctx.strokeStyle = resolveTheme(state.theme) === 'dark' ? 'rgba(210,228,236,0.22)' : 'rgba(25,48,72,0.16)';
+        ctx.fillStyle = resolveTheme(state.theme) === 'dark' ? 'rgba(220,235,242,0.72)' : 'rgba(18,36,54,0.66)';
         ctx.lineWidth = 1;
         ctx.font = '11px "Segoe UI", "PingFang SC", sans-serif';
         ctx.beginPath();
@@ -13973,7 +13981,7 @@
         if (xOuterMin <= 0 && xOuterMax >= 0) {
           const zeroX = ((0 - xOuterMin) / Math.max(1e-9, xOuterMax - xOuterMin)) * width;
           ctx.save();
-          ctx.strokeStyle = state.theme === 'dark' ? 'rgba(58, 204, 154, 0.9)' : 'rgba(14, 159, 110, 0.9)';
+          ctx.strokeStyle = resolveTheme(state.theme) === 'dark' ? 'rgba(58, 204, 154, 0.9)' : 'rgba(14, 159, 110, 0.9)';
           ctx.lineWidth = 1.5;
           ctx.beginPath();
           ctx.moveTo(zeroX, padding.top);
@@ -14224,7 +14232,7 @@
           ctx.fill();
           ctx.restore();
           ctx.save();
-          ctx.fillStyle = state.theme === 'dark' ? '#e5f0f5' : '#193048';
+          ctx.fillStyle = resolveTheme(state.theme) === 'dark' ? '#e5f0f5' : '#193048';
           ctx.font = 'bold 11px "Segoe UI", "PingFang SC", sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'bottom';
@@ -14388,7 +14396,7 @@
         if (xOuterMin <= 0 && xOuterMax >= 0) {
           const zeroX = ((0 - xOuterMin) / Math.max(1e-9, xOuterMax - xOuterMin)) * width;
           ctx.save();
-          ctx.strokeStyle = state.theme === 'dark' ? 'rgba(58, 204, 154, 0.9)' : 'rgba(14, 159, 110, 0.9)';
+          ctx.strokeStyle = resolveTheme(state.theme) === 'dark' ? 'rgba(58, 204, 154, 0.9)' : 'rgba(14, 159, 110, 0.9)';
           ctx.lineWidth = 1.5;
           ctx.beginPath();
           ctx.moveTo(zeroX, padding.top);
@@ -14836,12 +14844,16 @@
           ['zoomX', 'zoomY'].forEach(key => number(chart.view[key], `${path}.view.${key}`, Number.MIN_VALUE));
           ['offsetX', 'offsetY'].forEach(key => number(chart.view[key], `${path}.view.${key}`));
           ['baseXMin', 'baseXMax', 'baseYMin', 'baseYMax'].forEach(key => { if (chart.view[key] !== null) number(chart.view[key], `${path}.view.${key}`); });
-          ['X', 'Y'].forEach(axis => { if (chart.view[`base${axis}Min`] !== null && chart.view[`base${axis}Max`] !== null && chart.view[`base${axis}Min`] >= chart.view[`base${axis}Max`]) fail(path, '坐标范围无效'); });
+          const validateViewRange = (min, max, rangePath) => {
+            if (min !== null && max !== null && (!Number.isFinite(max - min) || max - min < 1e-9)) fail(rangePath, '坐标范围无效，跨度必须是至少 1e-9 的有限数值');
+          };
+          ['X', 'Y'].forEach(axis => validateViewRange(chart.view[`base${axis}Min`], chart.view[`base${axis}Max`], `${path}.view`));
           const perChannel = chart.view.perChannelY;
           object(perChannel, chart.channels.bindings, `${path}.view.perChannelY`);
           Object.values(perChannel).forEach(value => {
             object(value, ['zoom', 'offset', 'baseMin', 'baseMax'], `${path}.view.perChannelY`);
             Object.entries(value).forEach(([key, numberValue]) => { if (numberValue !== null || !['baseMin', 'baseMax'].includes(key)) number(numberValue, `${path}.view.perChannelY.${key}`, key === 'zoom' ? Number.MIN_VALUE : -Infinity); });
+            validateViewRange(value.baseMin, value.baseMax, `${path}.view.perChannelY`);
           });
         });
         object(config.modules, ['autoSendOpen', 'conditionSendOpen', 'presetSendOpen'], 'modules');
