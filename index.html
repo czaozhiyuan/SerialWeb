@@ -3430,6 +3430,10 @@
     }
 
     .chart-list {
+      grid-template-columns: repeat(var(--component-columns, 1), minmax(0, 1fr));
+      align-items: start;
+      align-content: start;
+      min-width: 0;
       min-height: 0;
       overflow: auto;
       display: grid;
@@ -3444,6 +3448,10 @@
       min-height: auto;
       padding-right: 0;
     }
+
+    .chart-list > * { min-width: 0; }
+    .chart-list > .panel-subtitle { grid-column: 1 / -1; }
+    .component-columns-control { display: flex; align-items: center; gap: 8px; font-size: 12px; white-space: nowrap; }
 
     .chart-panel {
       position: relative;
@@ -3688,6 +3696,7 @@
     }
 
     .chart-canvas-wrap {
+      min-width: 0;
       position: relative;
       min-height: 140px;
       overflow: hidden;
@@ -6025,6 +6034,11 @@
           <div class="chart-add-strip">
             <div class="chart-add-copy">
               <div class="panel-title">添加图框</div>
+              <label class="component-columns-control">组件列数
+                <select id="component-columns" class="compact-select" aria-label="全局组件列数" title="全局等宽排列；任何窗口宽度都保持所选列数">
+                  <option value="1">1 列</option><option value="2">2 列</option><option value="3">3 列</option>
+                </select>
+              </label>
             </div>
             <div class="button-row">
               <button id="add-time-chart-btn" class="secondary-btn">时域图</button>
@@ -6352,6 +6366,7 @@
         addBarChartBtn: document.getElementById('add-bar-chart-btn'),
         clearChartsBtn: document.getElementById('clear-charts-btn'),
         chartList: document.getElementById('chart-list'),
+        componentColumns: document.getElementById('component-columns'),
         monitorMetaMode: document.getElementById('monitor-meta-mode'),
         monitorMetaTx: document.getElementById('monitor-meta-tx'),
         monitorMetaRx: document.getElementById('monitor-meta-rx'),
@@ -6604,6 +6619,7 @@
           parserResultsExpanded: false,
           parserResultsCanExpand: false,
           chartDrag: null,
+          componentColumns: 1,
           sendExtensionHeightOverride: 0,
           sendExtensionResize: null,
           modePulse: {
@@ -12906,6 +12922,11 @@
       }
 
       function renderCharts(force = false) {
+        refs.chartList.style.setProperty('--component-columns', state.ui.componentColumns);
+        const columnsChanged = refs.componentColumns.value !== String(state.ui.componentColumns);
+        refs.componentColumns.value = String(state.ui.componentColumns);
+        refs.componentColumns.title = '所有组件等宽排列，任何窗口宽度都保持所选列数';
+        if (columnsChanged || !refs.componentColumns.closest('.custom-select')) syncCustomSelects(refs.componentColumns.parentElement);
         if (force || !refs.chartList.dataset.rendered) {
           const scrollState = captureChartScrollState();
           refs.chartList.innerHTML = state.charts.length
@@ -13941,7 +13962,8 @@
         const wrap = canvas.parentElement;
         const rect = wrap.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
-        const width = Math.max(300, Math.floor(rect.width));
+        if (!rect.width) return;
+        const width = Math.max(1, Math.floor(rect.width));
         const height = Math.max(140, Math.floor(rect.height));
         const pixelWidth = Math.max(1, Math.floor(width * dpr));
         const pixelHeight = Math.max(1, Math.floor(height * dpr));
@@ -14210,8 +14232,8 @@
         if (config.manualConnectRequired !== undefined) bool(config.manualConnectRequired, 'manualConnectRequired');
         if (config.receiveContentSchemaVersion !== undefined) integer(config.receiveContentSchemaVersion, 'receiveContentSchemaVersion', 0, RECEIVE_CONTENT_SCHEMA_VERSION);
         choice(config.theme, ['system', 'light', 'dark'], 'theme');
-        object(config.layout, ['expanded', 'sidebarCollapsed', 'parserResultsExpanded', 'sendExtensionHeight'], 'layout');
-        Object.entries(config.layout).forEach(([key, value]) => key === 'sendExtensionHeight' ? number(value, `layout.${key}`, 0) : bool(value, `layout.${key}`));
+        object(config.layout, ['expanded', 'sidebarCollapsed', 'parserResultsExpanded', 'sendExtensionHeight', 'componentColumns'], 'layout');
+        Object.entries(config.layout).forEach(([key, value]) => key === 'sendExtensionHeight' ? number(value, `layout.${key}`, 0) : key === 'componentColumns' ? integer(value, 'layout.componentColumns', 1, 3) : bool(value, `layout.${key}`));
         const settings = config.settings;
         const settingsKeys = ['baudRate', 'dataBits', 'stopBits', 'parity', 'releaseSignalsOnBlur', 'flowControl', 'signalDtr', 'signalRts', 'signalBreak', 'autoReconnect', 'rxDisplayMode', 'textEncoding', 'appendTimestamp', 'sendMode', 'newlineMode', 'appendNewline', 'txChecksum'];
         object(settings, settingsKeys, 'settings');
@@ -14884,6 +14906,7 @@
           state.layoutExpanded = Boolean(snapshot.layout?.expanded);
           state.ui.sidebarCollapsed = Boolean(snapshot.layout?.sidebarCollapsed);
           state.ui.parserResultsExpanded = Boolean(snapshot.layout?.parserResultsExpanded);
+          state.ui.componentColumns = [1, 2, 3].includes(snapshot.layout?.componentColumns) ? snapshot.layout.componentColumns : 1;
           const savedSendExtensionHeight = Number(snapshot.layout?.sendExtensionHeight);
           state.ui.sendExtensionHeightOverride = Number.isFinite(savedSendExtensionHeight) && savedSendExtensionHeight > 0
             ? savedSendExtensionHeight
@@ -15043,6 +15066,7 @@
             expanded: false,
             sidebarCollapsed: false,
             parserResultsExpanded: false,
+            componentColumns: 1,
             sendExtensionHeight: 0
           },
           settings: {
@@ -15109,6 +15133,7 @@
             expanded: Boolean(state.layoutExpanded),
             sidebarCollapsed: Boolean(state.ui.sidebarCollapsed),
             parserResultsExpanded: Boolean(state.ui.parserResultsExpanded),
+            componentColumns: state.ui.componentColumns,
             sendExtensionHeight: Math.max(0, Math.round(Number(state.ui.sendExtensionHeightOverride) || 0))
           },
           settings: { ...state.settings, ...(state.settings.txChecksum ? { txChecksum: { ...state.settings.txChecksum } } : {}) },
@@ -16517,6 +16542,19 @@
           syncParserResultsExpandedUI();
           scheduleLocalPrefsSave();
         });
+
+        refs.componentColumns.addEventListener('change', () => {
+          state.ui.componentColumns = Number(refs.componentColumns.value);
+          scheduleRefresh({ charts: true });
+          scheduleLocalPrefsSave();
+        });
+        let chartLayoutWidth = 0;
+        const chartLayoutObserver = new ResizeObserver(([entry]) => {
+          if (entry.contentRect.width === chartLayoutWidth) return;
+          chartLayoutWidth = entry.contentRect.width;
+          scheduleRefresh({ charts: true });
+        });
+        chartLayoutObserver.observe(refs.chartList);
 
         refs.addTimeChartBtn.addEventListener('click', () => {
           state.charts.push(createChart('time'));
