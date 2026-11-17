@@ -1,0 +1,58 @@
+requestAnimationFrame(async()=>{
+  const checks=[];
+  const check=(name,value)=>{if(!value)throw new Error(name);checks.push(name);};
+  const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+  const paint=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  const refresh=async()=>{scheduleRefresh();await paint();await wait(35);};
+  const visible=el=>!!el && getComputedStyle(el).display!=='none' && el.getBoundingClientRect().height>0;
+  try{
+    closeVersionModal();state.theme='dark';applyTheme();state.ui.sidebarCollapsed=false;
+    check('initial defaults stay disconnected with reconnect off',!state.serial.connected && !state.settings.autoReconnect && state.serial.requireManualConnect);
+    check('brand is Pscope without old current name',document.title.startsWith('Pscope') && document.querySelector('.workspace-brand').textContent==='Pscope' && !refs.topbar.textContent.includes('澄波'));
+    check('navigation lives above connection management in sidebar',refs.topbar.parentElement===refs.leftColumn && refs.topbar.getBoundingClientRect().top<refs.configPanel.getBoundingClientRect().top);
+    check('navigation has exactly three choices',Array.from(refs.logoModeSwitch.querySelectorAll('button')).map(b=>b.textContent.trim()).join(',')==='监视,解析,导入');
+    refs.parserModeBtn.click();await refresh();
+    check('parser selection is stable on repeated clicks',state.layoutExpanded && refs.parserModeBtn.getAttribute('aria-pressed')==='true');refs.parserModeBtn.click();await refresh();check('repeated parser click does not switch modes',state.layoutExpanded && !state.ui.importView);
+    check('right workspace starts at top without global header',refs.parserPanel.getBoundingClientRect().top<=16 && refs.topbar.getBoundingClientRect().right<=refs.configPanel.getBoundingClientRect().right+1);
+    state.parserMode='binary';state.parser.binarySchema=[{kind:'header',value:'A5'},{kind:'data',dataType:'uint8',name:'status'},{kind:'footer',value:'5A'}].map(normalizeBinarySchemaRowFromConfig);state.parser.binaryFields=[];
+    const group=createChart('command');group.name='设备控制';group.commands=['读取状态','启动','停止'].map((name,index)=>({...createCommand(),name,template:`AA ${index.toString(16).padStart(2,'0')} 00`,parameters:[]}));
+    const parameter={id:uid('schema'),name:'数值',offset:1,dataType:'uint8',byteOrder:'le',defaultValue:'3',min:'0',max:'255',options:''};group.commands[0].parameters=[parameter];
+    const numeric=createChart('numeric');numeric.name='状态数值';numeric.bindings=['parsed.status'];const curve=createChart('time');curve.bindings=['parsed.status'];state.charts=[group,numeric,curve];state.ui.componentColumns=2;
+    syncUserConfigControls();renderCharts(true);await refresh();
+    const command=group.commands[0];const editor=()=>refs.commandEditorList.querySelector(`[data-command-id="${command.id}"]`);const button=()=>refs.chartList.querySelector(`[data-send-command="${command.id}"]`);
+    check('independent editor immediately follows binary structure pane',refs.commandEditorSection.closest('.command-editor-section').previousElementSibling===refs.binaryParserPane);
+    check('command editing is a real table outside chart grid',!!editor().closest('table') && !editor().closest('#chart-list'));
+    const commandPanel=refs.chartList.querySelector(`[data-chart-id="${group.id}"]`);
+    check('command panel has only named sends and panel management',commandPanel.querySelectorAll('[data-send-command]').length===3 && !commandPanel.querySelector('input,textarea,select,details,[data-command-preview],[data-command-status],[data-add-command]'));
+    const rename=editor().querySelector('[data-command-key="name"]');rename.value='读取设备状态';rename.dispatchEvent(new Event('input',{bubbles:true}));await refresh();check('table name edit updates button label',button().textContent==='读取设备状态');
+    const template=editor().querySelector('[data-command-key="template"]');template.value='AB 00 00';template.dispatchEvent(new Event('input',{bubbles:true}));await refresh();
+    const value=editor().querySelector('[data-command-value]');value.value='7';value.dispatchEvent(new Event('input',{bubbles:true}));await refresh();check('table temporary parameter updates HEX preview',editor().querySelector('[data-command-preview]').textContent.endsWith('AB 07 00'));
+    check('disconnected button remains disabled',button().disabled);
+    const writes=[];state.serial.connected=true;state.serial.writer={ready:Promise.resolve(),write:async bytes=>writes.push(Array.from(bytes))};await refresh();
+    refs.commandEditorSection.querySelector('summary').click();await paint();await wait(20);check('command table collapses independently',!refs.commandEditorSection.open && refs.structureSection.open && !state.ui.commandEditorOpen);
+    button().click();await wait(40);await refresh();check('button sends edited bytes with editor folded',writes.length===1 && writes[0].join(',')==='171,7,0');
+    refs.structureSection.querySelector('summary').click();await paint();await wait(20);check('structure including fixed fields collapses independently',!refs.structureSection.open && !state.ui.structureOpen);
+    const payload=buildDeviceConfigPayload();check('JSON includes both fold choices',payload.config.layout.structureOpen===false && payload.config.layout.commandEditorOpen===false);
+    state.serial.connected=false;state.serial.writer=null;await openDeviceConfigText(JSON.stringify(payload));await refresh();check('JSON restores collapsed tables and command names',!refs.structureSection.open && !refs.commandEditorSection.open && state.charts[0].commands[0].name==='读取设备状态');
+    const old=JSON.parse(JSON.stringify(payload));delete old.config.layout.structureOpen;delete old.config.layout.commandEditorOpen;await openDeviceConfigText(JSON.stringify(old));await refresh();check('old 2.3 JSON opens with expanded tables',refs.structureSection.open && refs.commandEditorSection.open);
+    const malformed=JSON.parse(JSON.stringify(payload));malformed.config.layout.structureOpen='false';let rejected=false;try{validateDeviceConfig(malformed);}catch{rejected=true;}check('invalid fold option rejected',rejected);
+    const prefs=buildLocalPrefsSnapshot();prefs.layout.structureOpen=false;prefs.layout.commandEditorOpen=true;applyLocalPrefsSnapshot(prefs);syncUserConfigControls();await refresh();check('local preferences restore folds independently',!refs.structureSection.open && refs.commandEditorSection.open);
+    for(const columns of [1,2,3]){state.ui.componentColumns=columns;renderCharts(true);await paint();check(`${columns} columns still controlled by user`,getComputedStyle(refs.chartList).gridTemplateColumns.split(' ').length===columns);}
+    refs.importModeBtn.click();await refresh();check('import is exclusive third workspace',state.ui.importView && refs.importModeBtn.getAttribute('aria-pressed')==='true' && visible(refs.timelineWorkspace) && !visible(refs.monitorPanel) && !visible(refs.parserPanel));
+    const t=nowPreciseMs();const recording={name:'本地导入验收',startTs:t,durationMs:100,rawChunks:[{direction:'rx',timestamp:t,bytes:[0xA5,7,0x5A]}],graphConfig:snapshotTimelineGraphConfig(),createdAt:t};
+    const file=new File([encodeTimelineBin(buildTimelineExportPayload(recording))],'capture.bin');const n=state.timelines.length;const transfer=new DataTransfer();transfer.items.add(file);refs.timelineFileInput.files=transfer.files;refs.timelineFileInput.dispatchEvent(new Event('change',{bubbles:true}));for(let i=0;i<100 && state.timelines.length===n;i++)await wait(15);await refresh();
+    check('import workspace retains real BIN file loading',state.timelines.length===n+1 && state.timelines.at(-1).rawChunks[0].bytes.join(',')==='165,7,90');refs.importModeBtn.click();await refresh();
+    document.getElementById('import-timeline-list').querySelector(`[data-open-timeline-id="${state.timelines.at(-1).id}"]`).click();await refresh();check('imported recording opens in monitor workspace',!state.ui.importView && !state.layoutExpanded && visible(refs.monitorPanel));
+    check('record and replay control remains available in monitor toolbar',refs.stopRecordBtn.closest('.monitor-toolbar') && visible(refs.stopRecordBtn));
+    refs.systemMenuBtn.click();await paint();check('settings menu is outside sidebar clipping',refs.systemMenu.parentElement===appEl && refs.systemMenu.classList.contains('open') && refs.systemMenu.getBoundingClientRect().left>=0);refs.systemMenuBtn.click();
+    setActiveTimeline('realtime');refs.parserModeBtn.click();state.ui.componentColumns=2;state.ui.structureOpen=true;state.ui.commandEditorOpen=false;syncUserConfigControls();renderCharts(true);await refresh();refs.rightColumn.scrollTop=0;refs.leftColumn.scrollTop=0;window.scrollTo(0,0);
+    refs.structureSection.open=false;refs.commandEditorSection.open=true;await paint();
+    const table=refs.commandEditorList.querySelector('table');const row=table.querySelector('tbody tr');const cells=[...row.cells].map(cell=>cell.getBoundingClientRect());const headers=[...table.querySelectorAll('th')].map(cell=>cell.getBoundingClientRect());
+    check('command table cells align with headers across full width',cells.every((cell,index)=>Math.abs(cell.left-headers[index].left)<2 && Math.abs(cell.width-headers[index].width)<2) && row.getBoundingClientRect().width>=table.getBoundingClientRect().width-2);
+    refs.structureSection.open=true;refs.commandEditorSection.open=false;await paint();
+    document.getElementById('toast-layer').replaceChildren();
+    window.showCommandWorkspace=async()=>{refs.structureSection.open=false;refs.commandEditorSection.open=true;await paint();refs.rightColumn.scrollTop=0;refs.leftColumn.scrollTop=0;};
+    window.showCollapsedWorkspace=async()=>{refs.structureSection.open=false;refs.commandEditorSection.open=false;await paint();refs.rightColumn.scrollTop=0;refs.leftColumn.scrollTop=0;};
+    const result=parent.document.createElement('pre');result.id='workspace-ui-result';result.hidden=true;result.textContent=JSON.stringify({status:'passed',checks});parent.document.body.appendChild(result);
+  }catch(error){const result=parent.document.createElement('pre');result.id='workspace-ui-result';result.textContent=JSON.stringify({status:'failed',error:String(error),stack:error.stack,checks});parent.document.body.appendChild(result);}
+});

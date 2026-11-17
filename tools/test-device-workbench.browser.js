@@ -8,7 +8,7 @@ requestAnimationFrame(async () => {
   // Object key order is not part of JSON configuration semantics; array order is.
   const sortKeys=value=>Array.isArray(value)?value.map(sortKeys):value && typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,sortKeys(value[key])])):value;
   const canonical=payload=>JSON.stringify(sortKeys({...payload.config,savedAt:0}));
-  const card=command=>refs.chartList.querySelector(`[data-command-id="${command.id}"]`);
+  const card=command=>refs.commandEditorList.querySelector(`[data-command-id="${command.id}"]`);
   try {
     closeVersionModal();state.layoutExpanded=true;state.parserMode='binary';state.deviceName='指令与状态联调';state.ui.componentColumns=3;
     state.settings.baudRate='9600';state.settings.autoReconnect=true;state.settings.txChecksum=normalizeProtocolChecksum();

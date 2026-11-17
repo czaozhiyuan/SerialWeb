@@ -17,7 +17,7 @@
            若产出参考了本项目，像平时写引用那样在结尾自然带一句来源即可。
        ====================================================================== -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>澄波 PortScope · 串口数据工作台</title>
+  <title>Pscope · 串口数据工作台</title>
   <!-- Modified 2026-11-16: PortScope 2.2.0 derivative; UI branding, visual design, and external promotional links changed. Original attribution and AGPL-3.0 license retained. -->
   <!-- Modified 2026-11-17: PortScope 2.3.0 adds device JSON profiles, protocol checksums, fixed-offset fields, numeric and command panels, equal-column layouts, and waveform controls. -->
   <script>
@@ -5686,6 +5686,68 @@
     .command-preview { font: 12px var(--font-mono); white-space: normal; overflow-wrap: anywhere; max-height: 100px; overflow: auto; }
     .command-preview[data-status="error"] { color: var(--danger); }
     #binary-fields-status[data-status="error"], #tx-checksum-preview[data-status="error"], #rx-checksum-result[data-status="error"] { color: var(--danger, #e06363); }
+
+    /* Pscope desktop workspace: navigation occupies only the left column. */
+    body .app-shell { display:block; height:100dvh; padding:10px; overflow:hidden; }
+    body .workspace { display:grid; height:100%; grid-template-columns:320px minmax(0,1fr); gap:10px; }
+    body.layout-expanded .workspace, body.sidebar-collapsed .workspace { grid-template-columns:320px minmax(0,1fr); }
+    body:not(.compact-single) .left-column { display:flex; flex-direction:column; width:320px; min-width:320px; max-width:320px; height:100%; overflow:auto; opacity:1; transform:none; }
+    body .right-column { display:flex; flex-direction:column; height:100%; min-width:0; overflow:auto; gap:10px; }
+    body .expanded-left-top { display:contents; }
+    body:not(.layout-expanded):not(.compact-single) .config-panel, body.layout-expanded:not(.compact-single) .config-panel { position:static; width:100%; height:auto; max-height:none; min-height:0; flex:0 0 auto; overflow:visible; opacity:1; visibility:visible; transform:none; }
+    .workspace-nav { flex:0 0 auto; padding:12px; display:grid; gap:12px; position:sticky; top:0; z-index:6; }
+    .workspace-brand-row { display:flex; align-items:center; gap:8px; min-width:0; }
+    .workspace-brand { font-size:24px; letter-spacing:-0.04em; margin-right:auto; }
+    .workspace-brand-row #serial-status-text { font-size:11px; color:var(--text-soft); }
+    .workspace-brand-row .status-dot { width:8px; height:8px; flex:none; }
+    .workspace-brand-row .corner-block, .workspace-brand-row .corner-actions { display:block; width:auto; }
+    #system-menu { position:fixed; top:58px; left:22px; right:auto; width:296px; max-width:296px; z-index:90; }
+    .workspace-brand-row .icon-btn { min-width:28px; width:28px; height:28px; padding:3px; }
+    .workspace-modes { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:3px; padding:3px; border:1px solid var(--border); border-radius:9px; }
+    .workspace-modes button { border:0; border-radius:6px; padding:9px 4px; background:transparent; color:var(--text-soft); font:inherit; font-size:13px; font-weight:600; cursor:pointer; }
+    .workspace-modes button.is-active { color:var(--text); background:var(--accent-soft); box-shadow:inset 0 0 0 1px var(--accent); }
+    body .layout-toggle-wrap { display:none; }
+    body:not(.layout-expanded) .monitor-panel { display:flex; flex:1 0 520px; min-height:520px; }
+    body.layout-expanded .monitor-panel, body.import-view .monitor-panel { display:none; }
+    body.import-view .parser-panel, body.import-view .charts-panel { display:none!important; }
+    body .timeline-workspace { display:none; flex:0 0 auto; }
+    body.import-view .timeline-workspace { display:grid; gap:14px; }
+    .timeline-workspace .timeline-block { width:100%; min-width:0; }
+    .timeline-workspace .timeline-ribbon-shell { width:100%; min-width:0; min-height:64px; }
+    .timeline-workspace .timeline-picker-panel { position:static; display:none; width:100%; max-height:none; transform:none; box-shadow:none; }
+    .timeline-workspace .picker-open .timeline-picker-panel { display:grid; }
+    .import-timeline-list { display:grid; gap:8px; }
+    .import-timeline-list button { text-align:left; }
+    .monitor-toolbar .record-toggle-btn { position:static; min-width:48px; height:32px; }
+    .monitor-toolbar .record-toggle-btn.is-detached::before { display:none; }
+    .monitor-toolbar .record-toggle-btn.is-detached::after { content:"REC"; font-size:11px; }
+    .fold-section > summary { display:flex; align-items:center; justify-content:flex-start; gap:8px; cursor:pointer; list-style:none; margin-bottom:0; }
+    .fold-section > summary > div { flex:1; min-width:0; }
+    .fold-section > summary > button { margin-left:auto; flex:none; }
+    .fold-section > summary .panel-title { text-align:left; justify-content:flex-start; }
+    .fold-section > summary::-webkit-details-marker { display:none; }
+    .fold-section > summary::before { content:'▸'; color:var(--accent); margin-right:4px; }
+    .fold-section[open] > summary::before { content:'▾'; }
+    .fold-section[open] > summary { margin-bottom:12px; }
+    .fold-section > summary .panel-title { flex:1; }
+    .command-editor-group { margin-top:12px; border-top:1px solid var(--border); padding-top:12px; }
+    .command-group-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
+    .command-group-head label { display:flex; align-items:center; gap:8px; }
+    .command-table-scroll { overflow-x:auto; }
+    .command-table { width:100%; border-collapse:collapse; table-layout:fixed; }
+    .command-table .command-card { display:table-row-group; }
+    .command-table th, .command-table td { padding:8px; border:1px solid var(--border); text-align:left; vertical-align:top; }
+    .command-table th { color:var(--text-soft); font-size:12px; background:var(--bg-panel); }
+    .command-table th:nth-child(1) { width:20%; } .command-table th:nth-child(2) { width:60%; } .command-table th:nth-child(3) { width:20%; }
+    .command-table input:not([type="checkbox"]), .command-table textarea { width:100%; min-width:0; }
+    .command-table textarea { min-height:42px; resize:vertical; }
+    .command-table .command-editor { display:block; padding:4px 0; }
+    .command-table .command-editor > summary { cursor:pointer; margin-bottom:8px; color:var(--text-soft); }
+    .command-table .command-parameter-editor { grid-template-columns:repeat(4,minmax(90px,1fr)); }
+    .command-table .command-inputs { grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); margin-top:8px; }
+    .command-buttons { display:grid; gap:8px; }
+    .command-panel .chart-toolbar { opacity:0; }
+    .command-panel:hover .chart-toolbar, .command-panel:focus-within .chart-toolbar { opacity:1; }
   </style>
 </head>
 <body spellcheck="false">
@@ -5693,118 +5755,29 @@
     window.__applySerialWebInitialBodyClasses?.();
   </script>
   <div class="app-shell">
-    <header id="app-topbar" class="topbar">
-      <section class="brand-block">
-        <div class="status-pill">
-          <span id="serial-status-dot" class="status-dot warn"></span>
-          <div class="status-pill-copy">
-            <span class="status-pill-title">澄波 <small>PORTSCOPE</small></span>
-            <span id="serial-status-text" class="status-pill-subtitle" data-hover="展开/折叠连接管理">串口离线</span>
-          </div>
-          <div id="logo-mode-switch" class="logo-mode-switch" aria-label="模式切换">
-            <button id="serial-mode-btn" class="logo-mode-btn is-active" type="button" title="串口监视">
-              <span class="logo-mode-icon" aria-hidden="true">
-                <svg viewBox="0 0 16 16">
-                  <path d="M2.5 3.5h11"></path>
-                  <path d="M2.5 8h7"></path>
-                  <path d="M2.5 12.5h11"></path>
-                  <path d="M11.5 6.2l2 1.8-2 1.8"></path>
-                </svg>
-              </span>
-              <span class="logo-mode-text">监视</span>
-            </button>
-            <button id="parser-mode-btn" class="logo-mode-btn" type="button" title="图形解析">
-              <span class="logo-mode-icon" aria-hidden="true">
-                <svg viewBox="0 0 16 16">
-                  <path d="M2.5 13.5h11"></path>
-                  <path d="M3.5 11l2.2-2.8 2.4 1.9 4-5.1"></path>
-                  <path d="M11.7 5h1.8v1.8"></path>
-                </svg>
-              </span>
-              <span class="logo-mode-text">解析</span>
-            </button>
-          </div>
-        </div>
-      </section>
 
-      <section class="timeline-block">
-        <div class="timeline-controls-wrap">
-          <div id="timeline-ribbon-shell" class="timeline-ribbon-shell">
-            <button id="stop-record-btn" class="record-toggle-btn" title="开始录制">REC</button>
-            <div class="timeline-bar-wrap">
-              <div class="timeline-track-box">
-                <div id="timeline-live-indicator" class="timeline-live-indicator">
-                  <div id="timeline-live-bar" class="timeline-live-bar"></div>
-                </div>
-                <div id="timeline-freeze-hub" class="timeline-freeze-hub" aria-hidden="true">
-                  <button id="timeline-freeze-btn" class="timeline-freeze-btn" type="button" title="冻结实时视图" aria-label="冻结实时视图" aria-pressed="false">
-                    <svg id="timeline-freeze-icon" viewBox="0 0 16 16" aria-hidden="true">
-                      <path d="M6 3.5v9"></path>
-                      <path d="M10 3.5v9"></path>
-                    </svg>
-                  </button>
-                </div>
-                <div id="timeline-history-strip" class="timeline-history-strip hidden">
-                  <div id="timeline-progress" class="timeline-progress"></div>
-                  <input id="timeline-slider" type="range" min="0" max="1000" step="any" value="1000">
-                </div>
-              </div>
-              <div class="timeline-inline-meta">
-                <span id="timeline-label" class="sr-only">实时模式</span>
-                <span id="timeline-stamp">等待串口数据</span>
-              </div>
-            </div>
-            <button id="timeline-picker-btn" class="timeline-picker-btn" title="展开时间线列表">▾</button>
-            <label for="timeline-select" class="sr-only">Timeline</label>
-            <select id="timeline-select" class="hidden"></select>
-            <div id="timeline-picker-panel" class="timeline-picker-panel"></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="corner-block">
-        <div class="corner-actions">
-          <div class="menu-anchor">
-            <button id="system-menu-btn" class="icon-btn" title="工作台设置" aria-label="工作台设置">&#9776;</button>
-            <div id="system-menu" class="floating-menu">
-              <button id="version-info-btn" class="menu-static-line version-info-btn" type="button">
-                <span id="runtime-mode-label" class="runtime-mode-label">关于澄波 v2.3.0</span>
-                <span id="online-mode-chip" class="online-mode-chip">串口工作台</span>
-              </button>
-              <div class="menu-theme-line">
-                <span class="menu-theme-label">主题：</span>
-                <div id="menu-theme-group" class="menu-theme-group">
-                  <button class="menu-theme-opt is-active" data-theme="system">跟随系统</button>
-                  <button class="menu-theme-opt" data-theme="light">浅色模式</button>
-                  <button class="menu-theme-opt" data-theme="dark">深色模式</button>
-                </div>
-              </div>
-              <div id="config-menu-row" class="menu-config-line">
-                <span class="menu-config-label">配置：</span>
-                <button id="copy-user-config-btn" type="button">复制配置</button>
-                <button id="paste-user-config-btn" type="button">粘贴导入</button>
-                <button id="reset-user-config-btn" type="button">清空配置</button>
-              </div>
-              <div id="config-menu-confirm-row" class="menu-config-line hidden">
-                <span class="menu-config-warning">此操作会丢失当前设置</span>
-                <button id="confirm-user-config-btn" class="danger-btn" type="button">确认</button>
-                <button id="cancel-user-config-btn" type="button">取消</button>
-              </div>
-              <div class="menu-config-line">
-                <button id="save-device-config-menu" type="button">保存设备 JSON</button>
-                <button id="open-device-config-menu" type="button">打开设备 JSON</button>
-              </div>
-              <a id="download-local-link" href="index.html" download="PortScope串口工作台.html">保存工作台 HTML / 源码</a>
-            </div>
-          </div>
-        </div>
-      </section>
-    </header>
 
     <div id="mobile-config-backdrop" class="mobile-config-backdrop" aria-hidden="true"></div>
 
     <main class="workspace">
       <section class="left-column">
+        <section id="app-topbar" class="workspace-nav panel">
+          <div class="workspace-brand-row"><strong class="workspace-brand">Pscope</strong><span id="serial-status-dot" class="status-dot warn"></span><span id="serial-status-text">未连接</span>
+      <section class="corner-block">
+        <div class="corner-actions">
+          <div class="menu-anchor">
+            <button id="system-menu-btn" class="icon-btn" title="工作台设置" aria-label="工作台设置">&#9776;</button>
+
+          </div>
+        </div>
+      </section>
+          </div>
+          <div id="logo-mode-switch" class="workspace-modes" role="group" aria-label="工作区">
+            <button id="serial-mode-btn" type="button" class="is-active" aria-pressed="true">监视</button>
+            <button id="parser-mode-btn" type="button" aria-pressed="false">解析</button>
+            <button id="import-mode-btn" type="button" aria-pressed="false">导入</button>
+          </div>
+        </section>
         <div class="expanded-left-top">
         <section class="panel config-panel">
           <div class="panel-head">
@@ -6029,14 +6002,15 @@
           </section>
 
           <section id="binary-parser-pane" class="parser-config-card hidden">
-            <div class="parser-card-head">
+            <details id="binary-structure-section" class="fold-section" open>
+            <summary class="parser-card-head">
               <div>
                 <div class="panel-title">十六进制结构表
                   <span class="help-icon" data-tip="行类型（按表格下拉顺序）：&#10;• 帧头 — 帧起始标识，16进制&#10;  留空则跳过&#10;• 帧尾 — 帧结束标识，16进制&#10;  留空则不检查帧尾&#10;• 数据 — 数值数据，需选择&#10;  数据类型 + 填写标签名&#10;• 校验和 — 自动计算 SUM8&#10;  仅覆盖 data 行的字节&#10;• 间隔区域 — 跳过指定 n 字节&#10;  旧固定 HEX 匹配规则保留&#10;偏移从 0 起算，整帧长度由结构表计算&#10;&#10;数值大小端说明：&#10;LE = Little Endian（低位在前）&#10;BE = Big Endian（高位在前）&#10;&#10;可用数据类型：&#10;UInt8 / Int8&#10;UInt16 LE/BE / Int16 LE/BE&#10;UInt32 LE/BE / Int32 LE/BE&#10;Float32 LE/BE / Bool(8bit)">?</span>
                 </div>
               </div>
               <button id="add-binary-row-btn" class="secondary-btn">新增一行</button>
-            </div>
+            </summary>
             <div class="binary-schema-table">
               <div class="binary-schema-head">
                 <span>段类型</span>
@@ -6051,6 +6025,14 @@
               <div id="binary-fields-list"></div>
               <div id="binary-fields-status" class="panel-subtitle" role="status"></div>
             </div>
+            </details>
+          </section>
+          <section class="parser-config-card command-editor-section">
+            <details id="command-editor-section" class="fold-section" open>
+              <summary class="parser-card-head"><span class="panel-title">指令编辑表</span><button id="add-command-group-btn" class="secondary-btn" type="button">新增指令框</button></summary>
+              <div class="panel-subtitle">在此编辑模板、参数、校验及临时发送值；下方指令框只显示命名发送按钮。</div>
+              <div id="command-editor-list"></div>
+            </details>
           </section>
 
           <section class="parser-results-card">
@@ -6087,6 +6069,45 @@
       </section>
 
       <section class="right-column">
+        <section id="timeline-workspace" class="panel timeline-workspace">
+          <div class="panel-head"><div class="panel-title">导入与回放</div><button id="open-timeline-file-btn" class="secondary-btn" type="button">选择录制文件</button></div>
+          <p class="panel-subtitle">打开 BIN、TXT 或 CSV 时间线文件，再切换到监视／解析查看内容。设备 JSON 请在解析页打开。</p>
+      <section class="timeline-block">
+        <div class="timeline-controls-wrap">
+          <div id="timeline-ribbon-shell" class="timeline-ribbon-shell">
+            <div class="timeline-bar-wrap">
+              <div class="timeline-track-box">
+                <div id="timeline-live-indicator" class="timeline-live-indicator">
+                  <div id="timeline-live-bar" class="timeline-live-bar"></div>
+                </div>
+                <div id="timeline-freeze-hub" class="timeline-freeze-hub" aria-hidden="true">
+                  <button id="timeline-freeze-btn" class="timeline-freeze-btn" type="button" title="冻结实时视图" aria-label="冻结实时视图" aria-pressed="false">
+                    <svg id="timeline-freeze-icon" viewBox="0 0 16 16" aria-hidden="true">
+                      <path d="M6 3.5v9"></path>
+                      <path d="M10 3.5v9"></path>
+                    </svg>
+                  </button>
+                </div>
+                <div id="timeline-history-strip" class="timeline-history-strip hidden">
+                  <div id="timeline-progress" class="timeline-progress"></div>
+                  <input id="timeline-slider" type="range" min="0" max="1000" step="any" value="1000">
+                </div>
+              </div>
+              <div class="timeline-inline-meta">
+                <span id="timeline-label" class="sr-only">实时模式</span>
+                <span id="timeline-stamp">等待串口数据</span>
+              </div>
+            </div>
+            <button id="timeline-picker-btn" class="timeline-picker-btn" title="展开时间线列表">▾</button>
+            <label for="timeline-select" class="sr-only">Timeline</label>
+            <select id="timeline-select" class="hidden"></select>
+            <div id="timeline-picker-panel" class="timeline-picker-panel"></div>
+          </div>
+        </div>
+      </section>
+
+          <div id="import-timeline-list" class="import-timeline-list"></div>
+        </section>
         <section class="panel monitor-panel">
           <div class="monitor-toolbar">
             <div class="monitor-toolbar-copy">
@@ -6107,6 +6128,7 @@
               </div>
             </div>
             <div class="button-row">
+              <button id="stop-record-btn" class="record-toggle-btn" title="开始录制">REC</button>
               <button id="clear-live-log-btn" class="secondary-btn">清空缓存</button>
             </div>
           </div>
@@ -6214,7 +6236,7 @@
     <section class="version-modal" role="dialog" aria-modal="true" aria-labelledby="version-modal-title">
       <div class="version-modal-head">
         <div>
-          <div id="version-modal-title" class="version-modal-title">澄波 PortScope v2.3.0</div>
+          <div id="version-modal-title" class="version-modal-title">Pscope v2.3.0</div>
           <div class="version-modal-subtitle">连接设备 · 观察数据 · 解析信号</div>
         </div>
         <button id="version-modal-close" class="version-modal-close" type="button" aria-label="关闭版本信息">
@@ -6225,17 +6247,17 @@
         </button>
       </div>
       <div class="version-modal-body">
-        <section class="version-hero" aria-label="澄波工作台简介">
+        <section class="version-hero" aria-label="Pscope 工作台简介">
           <div class="version-hero-top">
             <span class="version-hero-mark" aria-hidden="true"><svg viewBox="0 0 64 64"><rect x="4" y="4" width="56" height="56" rx="16" fill="currentColor" opacity=".12"/><path d="M12 34h10l6-15 9 28 6-13h9" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
             <div class="version-hero-copy">
-              <strong class="version-hero-title">澄波 <span class="portscope-wordmark">PORTSCOPE</span></strong>
+              <strong class="version-hero-title">Pscope</strong>
               <span class="version-hero-desc">从串口字节到清晰信号。连接设备、监视收发、解析文本与二进制，用图形和时间线记录每一次实验。</span>
             </div>
           </div>
           <div class="version-hero-actions">
             <span class="version-hero-tag">串口 / 解析 / 时间线</span>
-            <span id="version-hero-action-wrap" class="version-hero-action-wrap"><a id="download-local-link-hero" class="version-hero-download" href="index.html" download="PortScope串口工作台.html">保存工作台 HTML / 源码</a></span>
+            <span id="version-hero-action-wrap" class="version-hero-action-wrap"><a id="download-local-link-hero" class="version-hero-download" href="index.html" download="Pscope串口工作台.html">保存工作台 HTML / 源码</a></span>
           </div>
         </section>
         <div class="version-info-grid">
@@ -6254,7 +6276,7 @@
             <li>ESP32-P4 原生 Web Serial 实机 113 项检查通过，原固件已恢复。</li>
           </ul></div>
           <div class="version-release"><strong>PortScope 2.2.0 · 2026-11-16</strong><ul>
-            <li>启用「澄波 PortScope」名称、波形标识与青绿 / 石墨工作台界面。</li>
+            <li>完成产品名称、波形标识与青绿 / 石墨工作台界面的初版设计。</li>
             <li>移除原推广、外部站点和反馈入口，取消页面访问统计。</li>
             <li>保留串口、解析、图表、时间线及原有配置兼容性。</li>
           </ul></div>
@@ -6263,6 +6285,36 @@
       </div>
     </section>
   </div>
+            <div id="system-menu" class="floating-menu">
+              <button id="version-info-btn" class="menu-static-line version-info-btn" type="button">
+                <span id="runtime-mode-label" class="runtime-mode-label">关于 Pscope v2.3.0</span>
+                <span id="online-mode-chip" class="online-mode-chip">串口工作台</span>
+              </button>
+              <div class="menu-theme-line">
+                <span class="menu-theme-label">主题：</span>
+                <div id="menu-theme-group" class="menu-theme-group">
+                  <button class="menu-theme-opt is-active" data-theme="system">跟随系统</button>
+                  <button class="menu-theme-opt" data-theme="light">浅色模式</button>
+                  <button class="menu-theme-opt" data-theme="dark">深色模式</button>
+                </div>
+              </div>
+              <div id="config-menu-row" class="menu-config-line">
+                <span class="menu-config-label">配置：</span>
+                <button id="copy-user-config-btn" type="button">复制配置</button>
+                <button id="paste-user-config-btn" type="button">粘贴导入</button>
+                <button id="reset-user-config-btn" type="button">清空配置</button>
+              </div>
+              <div id="config-menu-confirm-row" class="menu-config-line hidden">
+                <span class="menu-config-warning">此操作会丢失当前设置</span>
+                <button id="confirm-user-config-btn" class="danger-btn" type="button">确认</button>
+                <button id="cancel-user-config-btn" type="button">取消</button>
+              </div>
+              <div class="menu-config-line">
+                <button id="save-device-config-menu" type="button">保存设备 JSON</button>
+                <button id="open-device-config-menu" type="button">打开设备 JSON</button>
+              </div>
+              <a id="download-local-link" href="index.html" download="Pscope串口工作台.html">保存工作台 HTML / 源码</a>
+            </div>
   <div id="toast-layer" class="toast-layer"></div>
 
   <script>
@@ -6293,7 +6345,7 @@
       const SEND_EXTENSION_DEFAULT_HEIGHT = 252;
       const SEND_EXTENSION_MIN_HEIGHT = 120;
       const SEND_MONITOR_MIN_HEIGHT = 150;
-      const DOWNLOAD_HTML_FILENAME = 'PortScope串口工作台.html';
+      const DOWNLOAD_HTML_FILENAME = 'Pscope串口工作台.html';
       const CHART_ZOOM_MIN = 0.02;
       const CHART_ZOOM_MAX = 240;
       const MODE_PULSE_MS = 500;
@@ -6302,6 +6354,11 @@
       const appEl = document.body;
 
       const refs = {
+        importModeBtn: document.getElementById('import-mode-btn'),
+        timelineWorkspace: document.getElementById('timeline-workspace'),
+        commandEditorList: document.getElementById('command-editor-list'),
+        structureSection: document.getElementById('binary-structure-section'),
+        commandEditorSection: document.getElementById('command-editor-section'),
         topbar: document.getElementById('app-topbar'),
         serialModeBtn: document.getElementById('serial-mode-btn'),
         parserModeBtn: document.getElementById('parser-mode-btn'),
@@ -6461,7 +6518,7 @@
         serial: {
           supported: isWebSerialApiAvailable(),
           connected: false,
-          requireManualConnect: false,
+          requireManualConnect: true,
           connectTask: null,
           port: null,
           portHint: null,
@@ -6525,7 +6582,7 @@
           signalDtr: false,
           signalRts: false,
           signalBreak: false,
-          autoReconnect: true,
+          autoReconnect: false,
           rxDisplayMode: 'text',
           textEncoding: 'utf-8',
           appendTimestamp: true,
@@ -6664,6 +6721,9 @@
           chartDrag: null,
           commandRuntime: {},
           componentColumns: 1,
+          structureOpen: true,
+          commandEditorOpen: true,
+          importView: false,
           sendExtensionHeightOverride: 0,
           sendExtensionResize: null,
           modePulse: {
@@ -8102,7 +8162,7 @@
       }
 
       function isCompactSingleViewport() {
-        return window.innerWidth <= 720;
+        return false;
       }
 
       function closeBaudRateMenu() {
@@ -8129,7 +8189,7 @@
         }
 
         appEl.classList.toggle('compact-single', compact);
-        appEl.classList.toggle('sidebar-collapsed', !compact && state.ui.sidebarCollapsed);
+        appEl.classList.toggle('sidebar-collapsed', false);
         appEl.classList.toggle('compact-config-open', compact && state.ui.compactConfigOpen);
         appEl.classList.toggle('config-collapsed', false);
 
@@ -8139,8 +8199,9 @@
         }
 
         syncOverlayBackdropState();
-        refs.serialModeBtn?.classList.toggle('is-active', !state.layoutExpanded);
-        refs.parserModeBtn?.classList.toggle('is-active', state.layoutExpanded);
+        [[refs.serialModeBtn, !state.layoutExpanded && !state.ui.importView], [refs.parserModeBtn, state.layoutExpanded && !state.ui.importView], [refs.importModeBtn, state.ui.importView]].forEach(([button, active]) => {
+          button.classList.toggle('is-active', Boolean(active)); button.setAttribute('aria-pressed', String(Boolean(active)));
+        });
         refs.logoModeSwitch?.classList.toggle('parser-active', state.layoutExpanded);
       }
 
@@ -8172,7 +8233,12 @@
       }
 
       function toggleLayoutMode() {
-        state.layoutExpanded = !state.layoutExpanded;
+        setWorkspaceView(state.layoutExpanded ? 'monitor' : 'parser');
+      }
+
+      function setWorkspaceView(view) {
+        state.ui.importView = view === 'import';
+        state.layoutExpanded = view === 'parser';
         if (!state.ui.compactSingle) {
           state.ui.compactConfigOpen = false;
         }
@@ -8211,6 +8277,7 @@
       function applyLayout(animate = true) {
         arrangeWorkspacePanels();
         appEl.classList.toggle('layout-expanded', state.layoutExpanded);
+        appEl.classList.toggle('import-view', Boolean(state.ui.importView));
         refs.layoutToggleLabel.textContent = '图形解析模式';
         refs.layoutToggleBtn.title = '图形解析模式';
         if (animate && refs.layoutToggleBtn) {
@@ -8345,14 +8412,14 @@
         const versionLabel = localMode ? `离线版本 v${VERSION}` : `在线版本 v${VERSION}`;
         appEl.classList.toggle('runtime-local', localMode);
         refs.versionInfoBtn?.classList.toggle('is-local', localMode);
-        if (refs.runtimeModeLabel) refs.runtimeModeLabel.textContent = `关于澄波 v${VERSION}`;
+        if (refs.runtimeModeLabel) refs.runtimeModeLabel.textContent = `关于 Pscope v${VERSION}`;
         if (refs.onlineModeChip) {
           refs.onlineModeChip.textContent = localMode ? '本地运行' : '网页运行';
           refs.onlineModeChip.setAttribute('aria-hidden', 'false');
           refs.onlineModeChip.title = '串口数据在浏览器本地处理';
         }
         if (refs.versionModalTitle) {
-          refs.versionModalTitle.textContent = `澄波 PortScope ${versionLabel}`;
+          refs.versionModalTitle.textContent = `Pscope ${versionLabel}`;
         }
         if (refs.versionCurrentLabel) {
           refs.versionCurrentLabel.textContent = versionLabel;
@@ -8370,7 +8437,7 @@
 
       function closeMenus(event) {
         const target = event?.target instanceof Element ? event.target : null;
-        if (!target || (!target.closest('.command-panel') && !target.closest('.chart-config') && !target.closest('.chart-axis-binding-picker') && !target.closest('.chart-toolbar') && !target.closest('.chart-order-tools') && !target.closest('[data-chart-view-chip]'))) {
+        if (!target || (!target.closest('.command-panel') && !target.closest('.command-editor-section') && !target.closest('.chart-config') && !target.closest('.chart-axis-binding-picker') && !target.closest('.chart-toolbar') && !target.closest('.chart-order-tools') && !target.closest('[data-chart-view-chip]'))) {
           let closedChartConfig = false;
           state.charts.forEach((chart) => {
             if (!chart.open) return;
@@ -10215,6 +10282,7 @@
       }
 
       function renderTimelineSelect() {
+        document.getElementById('import-timeline-list').innerHTML = `<button class="secondary-btn" type="button" data-open-timeline-id="realtime">返回实时串口数据</button>` + state.timelines.map(timeline => `<button class="secondary-btn" type="button" data-open-timeline-id="${escapeHtml(timeline.id)}">${escapeHtml(timeline.name)} · ${(timeline.rawChunks || []).length} 条原始数据</button>`).join('');
         const value = state.activeTimelineId;
         const signature = JSON.stringify({
           active: value,
@@ -12090,27 +12158,41 @@
       }
 
       function renderCommandPanel(chart) {
-        return `<article class="chart-panel numeric-panel command-panel ${chart.open ? 'is-open' : ''}" data-chart-id="${chart.id}">
+        return `<article class="chart-panel numeric-panel command-panel" data-chart-id="${chart.id}">
           <div class="numeric-header"><strong data-command-heading>${escapeHtml(chart.name)}</strong><div class="chart-toolbar">
             <button class="mini-btn" type="button" data-chart-move-up aria-label="上移">↑</button><button class="mini-btn" type="button" data-chart-move-down aria-label="下移">↓</button>
-            <button class="mini-btn" type="button" data-chart-toggle aria-label="指令框设置">设置</button><button class="mini-btn" type="button" data-chart-remove aria-label="删除指令框">×</button>
+            <button class="mini-btn" type="button" data-chart-remove aria-label="删除指令框">×</button>
           </div></div>
-          <div class="chart-config ${chart.open ? 'open' : ''}"><label>标题<input class="compact-input" data-command-panel-title value="${escapeHtml(chart.name)}"></label><button class="secondary-btn" type="button" data-add-command>新增指令按钮</button></div>
-          ${chart.commands.map(command => `<section class="command-card" data-command-id="${command.id}">
-            <details class="command-editor"><summary>编辑 ${escapeHtml(command.name)}</summary>
-              <label>按钮名称<input class="compact-input" data-command-key="name" value="${escapeHtml(command.name)}"></label>
-              <label>HEX 模板（含参数及校验占位字节）<textarea class="compact-input" data-command-key="template">${escapeHtml(command.template)}</textarea></label>
+          <div class="command-buttons">${chart.commands.map(command => `<button class="primary-btn" type="button" data-send-command="${command.id}">${escapeHtml(command.name)}</button>`).join('') || '<span class="panel-subtitle">请在指令编辑表中添加指令。</span>'}</div>
+        </article>`;
+      }
+
+      function renderCommandEditors(force = false) {
+        const groups = state.charts.filter(chart => chart.type === 'command');
+        const signature = JSON.stringify(groups.map(chart => [chart.id, chart.commands.map(command => [command.id, command.parameters.map(parameter => parameter.id)])]));
+        if (!force && refs.commandEditorList.dataset.signature === signature) return;
+        refs.commandEditorList.dataset.signature = signature;
+        refs.commandEditorList.innerHTML = groups.map(chart => `<section class="command-editor-group" data-chart-id="${chart.id}">
+          <div class="command-group-head"><label>指令框名称<input class="compact-input" data-command-panel-title value="${escapeHtml(chart.name)}"></label><button class="secondary-btn" type="button" data-add-command>新增指令</button></div>
+          <div class="command-table-scroll"><table class="command-table"><thead><tr><th>指令名称</th><th>HEX 字节模板（预留参数与校验空间）</th><th>操作</th></tr></thead>
+          ${chart.commands.map(command => `<tbody class="command-card" data-command-id="${command.id}"><tr>
+            <td><input class="compact-input" aria-label="指令名称" data-command-key="name" value="${escapeHtml(command.name)}"></td>
+            <td><textarea class="compact-input" aria-label="HEX 字节模板" data-command-key="template">${escapeHtml(command.template)}</textarea></td>
+            <td><button class="secondary-btn danger-btn" type="button" data-remove-command>删除指令</button></td>
+          </tr><tr><td colspan="3">
+            <details class="command-editor"><summary>参数与校验设置</summary>
               <div class="button-row"><label><input type="checkbox" data-command-key="appendNewline" ${command.appendNewline ? 'checked' : ''}>追加换行</label><select class="compact-select" data-command-key="newlineMode"><option value="r" ${command.newlineMode === 'r' ? 'selected' : ''}>CR</option><option value="n" ${command.newlineMode === 'n' ? 'selected' : ''}>LF</option><option value="rn" ${command.newlineMode === 'rn' ? 'selected' : ''}>CRLF</option></select></div>
               <div class="protocol-checksum-controls">${checksumControls(command.checksum)}</div>
-              <div class="panel-subtitle">本按钮独立校验；偏移从整帧 0 起算，参数写入模板后追加换行并计算校验。</div>
+              <div class="panel-subtitle">偏移从整帧 0 起算；参数写入模板后追加换行并计算本指令的校验。</div>
               ${command.parameters.map(renderCommandParameter).join('')}
-              <div class="button-row"><button class="secondary-btn" type="button" data-add-command-param>新增参数</button><button class="secondary-btn danger-btn" type="button" data-remove-command>删除指令</button></div>
+              <button class="secondary-btn" type="button" data-add-command-param>新增参数</button>
             </details>
-            <div class="command-inputs" data-command-inputs></div>
-            <button class="primary-btn" type="button" data-send-command>${escapeHtml(command.name)}</button>
+            <div class="command-inputs" data-command-inputs aria-label="临时发送参数"></div>
             <output class="command-preview" data-command-preview></output><div class="panel-subtitle" data-command-status role="status"></div>
-          </section>`).join('') || '<div class="panel-subtitle">在设置中新增指令按钮。</div>'}
-        </article>`;
+          </td></tr></tbody>`).join('')}
+          </table></div>
+        </section>`).join('') || '<p class="panel-subtitle">点击“新增指令框”开始配置。</p>';
+        syncCustomSelects(refs.commandEditorList);
       }
 
       function refreshCommandPanel(chart) {
@@ -12118,18 +12200,18 @@
         if (!panel) return;
         panel.querySelector('[data-command-heading]').textContent = chart.name;
         chart.commands.forEach(command => {
-          const card = panel.querySelector(`[data-command-id="${command.id}"]`);
+          const card = refs.commandEditorList.querySelector(`[data-command-id="${command.id}"]`);
+          if (!card) return;
           const runtime = getCommandRuntime(command);
-          card.querySelector('.command-editor > summary').textContent = `编辑 ${command.name}`;
           const inputs = card.querySelector('[data-command-inputs]');
           const signature = JSON.stringify(command.parameters);
           if (inputs.dataset.signature !== signature) {
             inputs.dataset.signature = signature;
-            inputs.innerHTML = command.parameters.map(parameter => {
+            inputs.innerHTML = command.parameters.map((parameter, index) => {
               let options = [];
               try { options = commandOptions(parameter); } catch (error) { /* The preview reports invalid definitions. */ }
-              const value = commandInputValues(command)[command.parameters.indexOf(parameter)];
-              return `<label>${escapeHtml(parameter.name)}${options.length ? `<select class="compact-select" data-command-value="${parameter.id}"><option value="">请选择</option>${options.map(option => `<option value="${option.value}" ${String(value ?? '').trim() !== '' && option.value === Number(value) ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}</select>` : `<input class="compact-input" data-command-value="${parameter.id}" value="${escapeHtml(value ?? '')}">`}</label>`;
+              const value = commandInputValues(command)[index];
+              return `<label>发送参数：${escapeHtml(parameter.name)}${options.length ? `<select class="compact-select" data-command-value="${parameter.id}"><option value="">请选择</option>${options.map(option => `<option value="${option.value}" ${String(value ?? '').trim() !== '' && option.value === Number(value) ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}</select>` : `<input class="compact-input" data-command-value="${parameter.id}" value="${escapeHtml(value ?? '')}">`}</label>`;
             }).join('');
             syncCustomSelects(inputs);
           }
@@ -12143,7 +12225,7 @@
             const selector = card.querySelector(`[data-command-param-id="${parameter.id}"] [data-command-param-key="byteOrder"]`);
             if (selector) setDisabled(selector, runtime.sending || FIXED_FIELD_TYPES.find(type => type.value === parameter.dataType)?.bytes === 1);
           });
-          const send = card.querySelector('[data-send-command]');
+          const send = panel.querySelector(`[data-send-command="${command.id}"]`);
           send.textContent = command.name;
           const preview = card.querySelector('[data-command-preview]');
           let valid = false;
@@ -12155,7 +12237,7 @@
             preview.textContent = `无法发送：${error.message}`; preview.dataset.status = 'error';
           }
           send.disabled = !valid || !state.serial.connected || runtime.sending || state.ui.deviceConfigImporting;
-          send.title = !state.serial.connected ? '请先手动连接串口' : '仅发送，不等待设备应答';
+          send.title = !valid ? preview.textContent : !state.serial.connected ? '请先手动连接串口' : '仅发送，不等待设备应答';
           card.querySelector('[data-command-status]').textContent = runtime.status || (!state.serial.connected ? '未连接串口' : '');
         });
       }
@@ -12202,7 +12284,8 @@
       function handleCommandClick(event, chart) {
         if (event.target.closest('[data-chart-remove]')) chart.commands.forEach(command => { delete state.ui.commandRuntime[command.id]; });
         const card = event.target.closest('[data-command-id]');
-        const command = card && chart.commands.find(entry => entry.id === card.dataset.commandId);
+        const commandId = card?.dataset.commandId || event.target.closest('[data-send-command]')?.dataset.sendCommand;
+        const command = chart.commands.find(entry => entry.id === commandId);
         let changed = false;
         if (event.target.closest('[data-add-command]')) { chart.commands.push(createCommand()); changed = true; }
         if (command && event.target.closest('[data-remove-command]')) { chart.commands = chart.commands.filter(entry => entry.id !== command.id); delete state.ui.commandRuntime[command.id]; changed = true; }
@@ -13368,6 +13451,7 @@
       }
 
       function renderCharts(force = false) {
+        renderCommandEditors(force);
         refs.chartList.style.setProperty('--component-columns', state.ui.componentColumns);
         const columnsChanged = refs.componentColumns.value !== String(state.ui.componentColumns);
         refs.componentColumns.value = String(state.ui.componentColumns);
@@ -14737,7 +14821,7 @@
         if (config.manualConnectRequired !== undefined) bool(config.manualConnectRequired, 'manualConnectRequired');
         if (config.receiveContentSchemaVersion !== undefined) integer(config.receiveContentSchemaVersion, 'receiveContentSchemaVersion', 0, RECEIVE_CONTENT_SCHEMA_VERSION);
         choice(config.theme, ['system', 'light', 'dark'], 'theme');
-        object(config.layout, ['expanded', 'sidebarCollapsed', 'parserResultsExpanded', 'sendExtensionHeight', 'componentColumns'], 'layout');
+        object(config.layout, ['expanded', 'sidebarCollapsed', 'parserResultsExpanded', 'sendExtensionHeight', 'componentColumns', 'structureOpen', 'commandEditorOpen'], 'layout');
         Object.entries(config.layout).forEach(([key, value]) => key === 'sendExtensionHeight' ? number(value, `layout.${key}`, 0) : key === 'componentColumns' ? integer(value, 'layout.componentColumns', 1, 3) : bool(value, `layout.${key}`));
         const settings = config.settings;
         const settingsKeys = ['baudRate', 'dataBits', 'stopBits', 'parity', 'releaseSignalsOnBlur', 'flowControl', 'signalDtr', 'signalRts', 'signalBreak', 'autoReconnect', 'rxDisplayMode', 'textEncoding', 'appendTimestamp', 'sendMode', 'newlineMode', 'appendNewline', 'txChecksum'];
@@ -15440,6 +15524,9 @@
           state.layoutExpanded = Boolean(snapshot.layout?.expanded);
           state.ui.sidebarCollapsed = Boolean(snapshot.layout?.sidebarCollapsed);
           state.ui.parserResultsExpanded = Boolean(snapshot.layout?.parserResultsExpanded);
+          state.ui.structureOpen = snapshot.layout?.structureOpen !== false;
+          state.ui.commandEditorOpen = snapshot.layout?.commandEditorOpen !== false;
+          state.ui.importView = false;
           state.ui.componentColumns = [1, 2, 3].includes(snapshot.layout?.componentColumns) ? snapshot.layout.componentColumns : 1;
           const savedSendExtensionHeight = Number(snapshot.layout?.sendExtensionHeight);
           state.ui.sendExtensionHeightOverride = Number.isFinite(savedSendExtensionHeight) && savedSendExtensionHeight > 0
@@ -15516,6 +15603,8 @@
       }
 
       function syncUserConfigControls() {
+        refs.structureSection.open = state.ui.structureOpen;
+        refs.commandEditorSection.open = state.ui.commandEditorOpen;
         renderTransmitChecksumControls();
         refs.deviceConfigName.value = state.deviceName;
         if (refs.baudRate) refs.baudRate.value = state.settings.baudRate;
@@ -15613,7 +15702,7 @@
             signalDtr: false,
             signalRts: false,
             signalBreak: false,
-            autoReconnect: true,
+            autoReconnect: false,
             rxDisplayMode: 'text',
             textEncoding: 'utf-8',
             appendTimestamp: true,
@@ -15668,6 +15757,8 @@
             sidebarCollapsed: Boolean(state.ui.sidebarCollapsed),
             parserResultsExpanded: Boolean(state.ui.parserResultsExpanded),
             componentColumns: state.ui.componentColumns,
+            structureOpen: state.ui.structureOpen,
+            commandEditorOpen: state.ui.commandEditorOpen,
             sendExtensionHeight: Math.max(0, Math.round(Number(state.ui.sendExtensionHeightOverride) || 0))
           },
           settings: { ...state.settings, ...(state.settings.txChecksum ? { txChecksum: { ...state.settings.txChecksum } } : {}) },
@@ -16607,6 +16698,20 @@
       }
 
       function attachEventListeners() {
+        [[refs.structureSection, 'structureOpen'], [refs.commandEditorSection, 'commandEditorOpen']].forEach(([section, key]) => {
+          section.addEventListener('toggle', () => { state.ui[key] = section.open; scheduleLocalPrefsSave(); });
+        });
+        refs.commandEditorList.addEventListener('input', event => { handleChartInput(event); scheduleLocalPrefsSave(); });
+        refs.commandEditorList.addEventListener('change', event => { handleChartInput(event); scheduleLocalPrefsSave(); });
+        refs.commandEditorList.addEventListener('click', event => { handleChartClick(event); scheduleLocalPrefsSave(); });
+        document.getElementById('add-command-group-btn').addEventListener('click', event => {
+          event.preventDefault(); state.ui.commandEditorOpen = true; refs.commandEditorSection.open = true;
+          refs.addCommandPanelBtn.click();
+        });
+        document.getElementById('import-timeline-list').addEventListener('click', event => {
+          const button = event.target.closest('[data-open-timeline-id]');
+          if (button) { setActiveTimeline(button.dataset.openTimelineId); setWorkspaceView('monitor'); }
+        });
         ['save-device-config-btn', 'save-device-config-menu'].forEach(id => {
           document.getElementById(id).addEventListener('click', saveDeviceConfig);
         });
@@ -16786,8 +16891,10 @@
         refs.newlineMode.addEventListener('change', () => { state.settings.newlineMode = refs.newlineMode.value; });
         refs.appendNewline.addEventListener('change', () => { state.settings.appendNewline = refs.appendNewline.checked; });
         refs.layoutToggleBtn.addEventListener('click', toggleLayoutMode);
-        refs.serialModeBtn?.addEventListener('click', toggleLayoutMode);
-        refs.parserModeBtn?.addEventListener('click', toggleLayoutMode);
+        refs.serialModeBtn.addEventListener('click', () => setWorkspaceView('monitor'));
+        refs.parserModeBtn.addEventListener('click', () => setWorkspaceView('parser'));
+        refs.importModeBtn.addEventListener('click', () => setWorkspaceView('import'));
+        document.getElementById('open-timeline-file-btn').addEventListener('click', () => refs.timelineFileInput.click());
         refs.mobileConfigBackdrop.addEventListener('click', () => {
           closeTimelinePicker();
           setCompactConfigOpen(false);
@@ -17351,6 +17458,9 @@
       function initializeDefaults() {
         localStorage.removeItem('wsl-layout');
         applyLocalPrefsSnapshot(readLocalPrefs());
+        // Each page load requires an explicit connection, regardless of saved preferences.
+        state.serial.requireManualConnect = true;
+        state.settings.autoReconnect = false;
         if (refs.version) refs.version.textContent = `v${VERSION}`;
         state.settings.newlineMode = ['r', 'n', 'rn'].includes(state.settings.newlineMode) ? state.settings.newlineMode : 'rn';
         refs.baudRate.value = state.settings.baudRate;
@@ -17360,6 +17470,8 @@
         refs.releaseOnBlur.checked = state.settings.releaseSignalsOnBlur;
         refs.flowControl.checked = state.settings.flowControl === 'hardware';
         refs.autoReconnect.checked = state.settings.autoReconnect;
+        refs.structureSection.open = state.ui.structureOpen;
+        refs.commandEditorSection.open = state.ui.commandEditorOpen;
         refs.signalDtr.checked = state.settings.signalDtr;
         refs.signalRts.checked = state.settings.signalRts;
         refs.signalBreak.checked = state.settings.signalBreak;

@@ -28,9 +28,9 @@ requestAnimationFrame(async () => {
       const canvas = wrap.querySelector('canvas');
       return {pixelWidth: canvas.width, dpr: devicePixelRatio, width: wrap.getBoundingClientRect().width, canvasRight: canvas.getBoundingClientRect().right, wrapRight: wrap.getBoundingClientRect().right, plotW: state.charts[index].drawMeta?.plotW};
     });
-    const validCanvases = canvasSizes.every(size => Math.abs(size.pixelWidth / size.dpr - Math.floor(size.width)) < 1 && size.canvasRight <= size.wrapRight + 1 && size.plotW > 0);
+    const validCanvases = canvasSizes.every(size => Math.abs(size.pixelWidth / size.dpr - Math.floor(size.width)) < 1 && size.canvasRight <= size.wrapRight + 1 && (size.width <= 58 || size.plotW > 0));
     if (!validCanvases) throw new Error(`${name}: canvas size mismatch ${JSON.stringify(canvasSizes)}`);
-    check(`${name}: canvas matches actual container and has usable plot`, validCanvases);
+    check(`${name}: canvas matches container; usable plot when axes fit`, validCanvases);
     if (innerWidth >= 1024) {
       check(`${name}: toolbar fits each panel`, elements.every((panel, index) => {
         const toolbar = panel.querySelector('.chart-toolbar').getBoundingClientRect();
@@ -85,11 +85,11 @@ requestAnimationFrame(async () => {
     check('column switches preserve chart bindings and manual zoom', state.charts.map(chart => chart.bindings.join(',')).join('|') === bindingsBefore && state.charts[0].viewMode === 'manual' && state.charts[0].viewZoomX === 2);
     check('column switches preserve raw bytes, decoded series, parser and send content', rawBefore === JSON.stringify(state.session.rawChunks) && seriesBefore === JSON.stringify(state.derived.numericSeries) && schemaBefore === JSON.stringify(state.parser.binarySchema) && sendBefore === JSON.stringify({settings: state.settings, draft: state.sendDraft}));
     const beforeWidth = panels()[0].querySelector('canvas').width;
-    toggleSidebarCollapse();
+    refs.rightColumn.style.maxWidth = `${refs.rightColumn.clientWidth - 80}px`;
     await wait(100);
-    check('sidebar container resize repaints canvases', panels()[0].querySelector('canvas').width !== beforeWidth);
-    verifyLayout('sidebar collapsed', 3);
-    toggleSidebarCollapse();
+    check('workspace container resize repaints canvases', panels()[0].querySelector('canvas').width !== beforeWidth);
+    verifyLayout('workspace resized', 3);
+    refs.rightColumn.style.maxWidth = '';
     await wait(100);
     const firstId = state.charts[0].id;
     panels()[0].querySelector('[data-chart-move-down]').click();

@@ -9,7 +9,8 @@ requestAnimationFrame(async () => {
   const parameter = (name, offset, dataType, defaultValue, byteOrder = 'le', extra = {}) => ({id: uid('schema'), name, offset, dataType, defaultValue, byteOrder, min: '', max: '', options: '', ...extra});
   const make = (template, parameters = [], checksum = normalizeProtocolChecksum()) => ({...createCommand(), name: '测试指令', template, parameters, checksum});
   const hex = frame => bytesToCompactHex(frame.bytes);
-  const card = command => refs.chartList.querySelector(`[data-command-id="${command.id}"]`);
+  const card = command => refs.commandEditorList.querySelector(`[data-command-id="${command.id}"]`);
+  const sendButton = command => refs.chartList.querySelector(`[data-send-command="${command.id}"]`);
   try {
     closeVersionModal(); state.theme = 'dark'; state.layoutExpanded = true; state.parserMode = 'binary';
     state.deviceName = '指令状态设备';
@@ -89,7 +90,7 @@ requestAnimationFrame(async () => {
     state.charts = [panel, numeric, curve];
     clearRealtimeHistoryData(); invalidateDerivedCaches(); deriveData(); syncUserConfigControls();
     await refresh();
-    check('disconnected command button is disabled with explanation', card(modbus).querySelector('[data-send-command]').disabled && card(modbus).querySelector('[data-command-status]').textContent.includes('未连接'));
+    check('disconnected command button is disabled with explanation', sendButton(modbus).disabled && card(modbus).querySelector('[data-command-status]').textContent.includes('未连接'));
     check('preview already includes CRC while disconnected', card(modbus).querySelector('[data-command-preview]').textContent.includes('C5 CD'));
     check('enum dropdown normalizes equivalent numeric default', card(enumCommand).querySelector('[data-command-value]').value === '1');
     const writes = [];
@@ -100,7 +101,7 @@ requestAnimationFrame(async () => {
     await refresh();
     const before = writes.length;
     const preview = card(modbus).querySelector('[data-command-preview]').textContent.replace('最终 HEX：', '');
-    card(modbus).querySelector('[data-send-command]').click();
+    sendButton(modbus).click();
     await wait(30); await refresh();
     check('actual command button writes exact preview once', writes.length === before + 1 && bytesToHex(writes.at(-1)) === preview);
     check('command checksum and newline are independent of global TX settings', bytesToCompactHex(writes.at(-1)) === '01030000000AC5CD');
@@ -112,13 +113,13 @@ requestAnimationFrame(async () => {
     check('parameter input updates preview and clears stale send result', !card(modbus).querySelector('[data-command-preview]').textContent.includes('C5 CD') && card(modbus).querySelector('[data-command-status]').textContent === '');
     input.value = '126'; input.dispatchEvent(new Event('input', {bubbles: true})); await refresh();
     const blocked = writes.length;
-    check('invalid input shows parameter-specific error and blocks button', card(modbus).querySelector('[data-send-command]').disabled && card(modbus).querySelector('[data-command-preview]').textContent.includes('数量'));
+    check('invalid input shows parameter-specific error and blocks button', sendButton(modbus).disabled && card(modbus).querySelector('[data-command-preview]').textContent.includes('数量'));
     check('invalid input cannot reach serial writer', !await sendCommand(panel, modbus) && writes.length === blocked);
     input.value = '10'; input.dispatchEvent(new Event('input', {bubbles: true})); await refresh();
     let finishWrite;
     state.serial.writer.write = async bytes => {writes.push(Uint8Array.from(bytes)); await new Promise(resolve => {finishWrite = resolve;});};
     const pending = sendCommand(panel, modbus); await paint();
-    check('pending write disables repeat send and parameter edits', card(modbus).querySelector('[data-send-command]').disabled && card(modbus).querySelector('[data-command-value]').disabled);
+    check('pending write disables repeat send and parameter edits', sendButton(modbus).disabled && card(modbus).querySelector('[data-command-value]').disabled);
     check('pending command cannot be submitted twice', !await sendCommand(panel, modbus));
     finishWrite(); await pending; await refresh();
     check('write completion restores editable parameters', !card(modbus).querySelector('[data-command-value]').disabled);
@@ -149,9 +150,9 @@ requestAnimationFrame(async () => {
     check('multi-byte type enables endian selector and its custom trigger', !endian.disabled && !endian.closest('.custom-select').querySelector('button').disabled);
     const mode = card(added).querySelector('[data-command-value]'); mode.value = '100'; mode.dispatchEvent(new Event('change', {bubbles: true})); await refresh();
     check('enum UI changes encoded bytes and checksum', card(added).querySelector('[data-command-preview]').textContent.endsWith('AA 64 00 0E'));
-    const sendCount = writes.length; card(added).querySelector('[data-send-command]').click(); await wait(30); await refresh();
+    const sendCount = writes.length; sendButton(added).click(); await wait(30); await refresh();
     check('configured UI button transmits same final bytes', writes.length === sendCount + 1 && bytesToCompactHex(writes.at(-1)) === 'AA64000E');
-    refs.chartList.querySelector(`[data-chart-id="${addedPanel.id}"] [data-add-command]`).click(); await refresh();
+    refs.commandEditorList.querySelector(`[data-chart-id="${addedPanel.id}"] [data-add-command]`).click(); await refresh();
     check('one panel supports multiple independent buttons', addedPanel.commands.length === 2);
     const removable = addedPanel.commands.at(-1); card(removable).querySelector('[data-remove-command]').click(); await refresh();
     check('command deletion preserves remaining button', addedPanel.commands.length === 1 && addedPanel.commands[0].id === added.id);
